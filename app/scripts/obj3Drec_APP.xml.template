@@ -1,0 +1,112 @@
+<application>
+<name>obj3Drec_APP</name>
+        <dependencies>
+            <port>/icub/camcalib/left/out</port>
+            <port>/icub/camcalib/right/out</port>
+            <port>/iKinGazeCtrl/rpc</port>
+        </dependencies>
+      
+        <module>
+           <name>SFM</name>
+           <node>console</node>
+        </module>
+
+        <module>
+           <name>obj3Drec</name>
+           <parameters>--downsampling 1 --spatial_distance 0.004 --color_distance 6</parameters>
+           <node>console</node>
+        </module>
+        
+        <module>
+            <name>graphBasedSegmentation</name>
+            <parameters></parameters>
+            <node>console</node>
+        </module>
+
+        <module>
+           <name>yarpview</name>
+           <parameters>--name /disp --out /disp/out --p 33</parameters>
+           <node>console</node>
+        </module>
+
+        <module>
+           <name>yarpview</name>
+           <parameters>--name /segView --p 33</parameters>
+           <node>console</node>
+        </module>
+        
+        <module>
+           <name>yarpview</name>
+           <parameters>--name /imLeft --p 33</parameters>
+           <node>console</node>
+        </module>
+
+        <connection>
+            <from>/icub/camcalib/left/out</from>
+            <to>/SFM/left:i</to>
+            <protocol>tcp</protocol>
+        </connection>
+        <connection>
+            <from>/icub/camcalib/right/out</from>
+            <to>/SFM/right:i</to>
+            <protocol>tcp</protocol>
+        </connection>        
+                      
+        <connection>
+            <from>/icub/camcalib/left/out</from>
+            <to>/GBSeg/rawImg:i</to>
+            <protocol>tcp</protocol>
+        </connection>
+        
+        <connection>
+            <from>/icub/camcalib/left/out</from>
+            <to>/imLeft</to>
+            <protocol>tcp</protocol>
+        </connection>
+        
+        <connection>
+            <from>/SFM/disp:o</from>
+            <to>/obj3Drec/disp:i</to>
+            <protocol>tcp</protocol>
+        </connection>
+
+        <connection>
+            <from>/obj3Drec/SFM:rpc</from>
+            <to>/SFM/rpc</to>
+            <protocol>tcp</protocol>
+        </connection>
+        
+        <connection>
+            <from>/obj3Drec/seg:rpc</from>
+            <to>/GBSeg/conf</to>
+            <protocol>tcp</protocol>
+            <geometry>(Pos ((x 549.5) (y 189)) ((x 552) (y 226)) ((x 568) (y 152))  )</geometry>
+        </connection>
+
+        <connection>
+            <from>/icub/camcalib/left/out</from>
+            <to>/obj3Drec/img:i</to>
+            <protocol>tcp</protocol>
+        </connection>
+
+        <connection>
+            <from>/obj3Drec/disp:o</from>
+            <to>/disp</to>
+            <protocol>tcp</protocol>
+        </connection>
+
+        <connection>
+            <from>/disp/out</from>
+            <to>/obj3Drec/contour:i</to>
+            <protocol>tcp</protocol>
+        </connection>
+        
+        <connection>
+            <from>/GBSeg/viewImg:o</from>
+            <to>/segView</to>
+            <protocol>udp</protocol>
+            <geometry>(Pos ((x 822.5) (y 173.5)) ((x 833) (y 139)) ((x 833) (y 208))  )</geometry>
+        </connection>
+        
+</application>
+

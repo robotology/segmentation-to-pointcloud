@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<?xml-stylesheet type="text/xsl" href="yarpmanifest.xsl"?>
+ 
+<module>
+    <!-- module's name should match its executable file's name. -->
+    <name>obj3Drec</name>
+    <description>Enables 3D object reconstruction in a series of ways</description>
+        <copypolicy>Released under the terms of the GNU GPL v2.0</copypolicy>
+    <version>1.0</version>
+    
+    <description-long>
+    obj3Drec applies disparity information to retrieve 3D clouds of desired objects. The objects can be chosen from a user defined polygon, 
+    from a segmentation algorithm, or from 2D (in color) or 3D (in depth)  flood filling. 
+    </description-long>
+
+    <!-- <arguments> can have multiple <param> tags-->
+    <arguments>    
+    <param desc="Name of the module" default="obj3Drec"> name</param>
+    </arguments>
+
+    <!-- <authors> can have multiple <author> tags. -->
+    <authors>
+  	  <author email="ugo.pattacini@iit.it"> Ugo Pattacini</author>
+	  <author email="tanis.mar@iit.it"> Tanis Mar</author>
+    </authors>
+    
+     <!-- <data> can have multiple <input> or <output> tags. -->
+     <data>
+        <input port_type="service">
+            <type>rpc</type>
+            <port carrier="tcp">/obj3Drec/rpc:i</port>
+            <description> Takes the following RPC commands from Human or stateMachine
+                -# <b>help</b>:  produces this help.
+                -# <b>go</b>: gets pointcloud from the selected polygon on the disp image.
+                -# <b>flood int(color_distance) </b>: gets pointcloud from 2D color flood. User has to select the seed pixel from the disp image.
+                -# <b>flood3D double(spatial_distance) </b>: gets pointcloud from 3D color flood (based on depth). User has to select the seed pixel from the disp image.
+                -# <b>seg</b>: gets pointcloud from an externally segmented blob. User has to select the seed pixel from the disp image.
+                -# <b>setFormat string(fileformat)</b>: sets the format in which the points will be saved. 'fileformat' can be  'ply', 'off' or 'none'.
+                -# <b>setFileName string(filename)</b>: sets the base name given to the files where the 3D points will be saved.
+            </description>
+        </input>
+        <input>
+            <type>ImageOfPixelMono</type>
+            <port carrier="udp">/obj3Drec/disp:i</port>
+            <required>no</required>
+            <priority>no</priority>
+            <description> Receives the disparity image.</description>
+        </input>
+        <input>
+            <type>ImageOfPixelRgb</type>
+            <port carrier="udp">/obj3Drec/img:i</port>
+            <required>no</required>
+            <priority>no</priority>
+            <description> Receives the camera image.</description>
+        </input>
+        
+        <input>
+            <type>Bottle</type>
+            <port carrier="udp">/obj3Drec/contour:i</port>
+            <required>no</required>
+            <priority>no</priority>
+            <description> Receives the polygon contour points selected by user</description>
+        </input>
+        
+        <!-- output data if available -->
+        <output>
+            <type>Bottle</type>
+            <port carrier="udp">/obj3Drec/pnt:o</port>
+            <description>Sends out the reconstructed 3D objectas a bottle of points, where each point is itself a list of 3 values x, y, z. </description>
+        </output> 
+        <output>
+            <type>ImageOfPixelRgb</type>
+            <port carrier="udp">/obj3Drec/disp:o</port>
+            <description>Sends out the processed disparity, with segmented data or bounding box, for visualization.</description>
+        </output> 
+        <output port_type="service">
+            <type>rpc</type>
+            <port carrier="tcp">/obj3Drec/SFM:rpc</port>
+            <description>rpc port to communicate with the SFM module, to receive disp data and the 3D points. </description>
+        </output>
+        <output port_type="service">
+            <type>rpc</type>
+            <port carrier="tcp">/obj3Drec/seg:rpc</port>
+            <description>rpc port to communicate with the segmentation, to receive the segmented blob points. </description>
+        </output>  
+    </data>
+
+    <dependencies>
+        <computer>
+            SFM module must be running. 
+        </computer>
+    </dependencies>
+
+    <!-- specific libraries or header files which are used for development -->
+    <development>
+        <header></header>
+        <library>YARP</library>       
+    </development>
+
+</module>
+
