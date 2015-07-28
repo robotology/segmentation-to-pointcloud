@@ -380,6 +380,7 @@ public:
                 }
                 go=flood=flood3d=seg=false;
                 points.clear();
+                bpoints.clear();
             }
         }
 
