@@ -255,10 +255,6 @@ public:
                     //PixelMono c = imgDispIn->pixel(seed.x,seed.y);
                     cv::Scalar delta(color_distance);
 
-                    // flood region and display
-                    //cv::floodFill(imgDispInMat,seed,cv::Scalar(255),NULL,delta,delta,4|cv::FLOODFILL_FIXED_RANGE);
-                    //cv::cvtColor(imgDispInMat,imgDispOutMat,CV_GRAY2RGB);
-
                     // flood region and copy flood onto mask
                     cv::Mat mask = cv::Mat::zeros(imgInMat.rows + 2, imgInMat.cols + 2, CV_8U);
                     cv::floodFill(imgDispInMat, mask, seed, cv::Scalar(255), NULL, delta, delta,  4 + (255 << 8) | cv::FLOODFILL_FIXED_RANGE| cv::FLOODFILL_MASK_ONLY);
@@ -383,6 +379,7 @@ public:
                     portPointsOut.unprepare();
                 }
                 go=flood=flood3d=seg=false;
+                points.clear();
             }
         }
 
