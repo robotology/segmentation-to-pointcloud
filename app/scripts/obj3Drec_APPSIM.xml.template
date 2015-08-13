@@ -32,7 +32,7 @@
 
         <module>
            <name>yarpview</name>
-           <parameters>--name /segView --p 33</parameters>
+           <parameters>--name /segView --p 33 --out /segView/coordinates:out</parameters>
            <node>console</node>
         </module>
 
@@ -105,6 +105,13 @@
             <from>/GBSeg/viewImg:o</from>
             <to>/segView/yarpview/img:i</to>
             <protocol>udp</protocol>
+        </connection>
+        
+        <connection>
+            <from>/segView/coordinates:out</from>
+            <to>/obj3Drec/seed:i</to>
+            <protocol>udp</protocol>
+            <geometry>(Pos ((x 822.5) (y 173.5)) ((x 833) (y 139)) ((x 833) (y 208))  )</geometry>
         </connection>
         
 </application>

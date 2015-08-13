@@ -58,6 +58,7 @@ protected:
     BufferedPort<ImageOf<PixelRgb> > portDispOut;
     BufferedPort<ImageOf<PixelRgb> > portImgIn;
     BufferedPort<Bottle> portPointsOut;
+    Port portSeedIn;
     Port portContour;
     RpcClient portSFM;
     RpcClient portSeg;
@@ -99,8 +100,9 @@ public:
 
         printf("Opening ports\n" );
         bool ret= true;
-        ret = portDispIn.open("/"+name+"/disp:i");
+        ret = ret && portDispIn.open("/"+name+"/disp:i");
         ret = ret && portImgIn.open("/"+name+"/img:i");
+        ret = ret && portSeedIn.open("/"+name+"/seed:i");
         ret = ret && portContour.open("/"+name+"/contour:i");
 
         ret = ret && portPointsOut.open("/"+name+"/pnt:o");
@@ -118,6 +120,7 @@ public:
 
 
         portContour.setReader(*this);
+        portSeedIn.setReader(*this);
         attach(portRpc);
 
         go=flood3d=flood=seg=false;
@@ -272,19 +275,19 @@ public:
 
                 }else if (seg)
                 {
-                    cout << "3D points from segmentation "<<endl;
+                    cout << "Extracting 3D points from segmentated blob "<<endl;
 
                     // Get segmented region from external segmentation module
                     Bottle cmdSeg, replySeg;
                     cmdSeg.addString("get_component_around");
                     cmdSeg.addInt(contour.back().x);
-                    cmdSeg.addInt(contour.back().x);
+                    cmdSeg.addInt(contour.back().y);
 
                     if (portSeg.write(cmdSeg,replySeg))
                     {
 
                         Bottle* pixelList=replySeg.get(0).asList();
-                        cout << "Read " << pixelList->size() << "points from segmentation algorithm" <<endl;
+                        cout << "Read " << pixelList->size() << " points from segmentation algorithm" <<endl;
                         cv::Mat binImg = cv::Mat(imgDispInMat.rows, imgDispInMat.cols, CV_8U, 0.0);
                         for (int i=0; i<pixelList->size(); i++)
                         {
@@ -292,7 +295,6 @@ public:
                             int x = point->get(0).asDouble();
                             int y = point->get(1).asDouble();
                             binImg.at<uchar>(y,x) = 255;
-                            //floodPoints.push_back(cv::Point(x,y));
                         }
 
                         // Get the contours of the segmented region.
@@ -427,6 +429,10 @@ public:
                             point[4]=px.g;
                             point[5]=px.b;
 
+                            bpoint.addDouble(point[3]);
+                            bpoint.addDouble(point[4]);
+                            bpoint.addDouble(point[5]);
+
                             pointsInContour.push_back(point);
                         }
                     }
@@ -459,7 +465,7 @@ public:
             reply.addString("help - produces this help");
             reply.addString("go - gets pointcloud from the selected polygon on the disp image");
             reply.addString("flood int(color_distance) - gets pointcloud from 2D color flood. User has to select the seed pixel from the disp image");
-            reply.addString("flood3D double(spatial_distance)- gets pointcloud from 3D color flood (based on depth). User has to select the seed pixel from the disp image");
+            reply.addString("flood3d double(spatial_distance)- gets pointcloud from 3D color flood (based on depth). User has to select the seed pixel from the disp image");
             reply.addString("seg - gets pointcloud from an externally segmented blob. User has to select the seed pixel from the disp image");
             reply.addString("setFormat string(fileformat)- sets the format in which the points will be saved. 'fileformat' can be  'ply', 'off' or 'none'.");
             reply.addString("setFileName string(filename)- sets the base name given to the files where the 3D points will be saved. ");
