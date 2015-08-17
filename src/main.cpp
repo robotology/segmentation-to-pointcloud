@@ -450,7 +450,7 @@ public:
         int nack=Vocab::encode("nack");
 
         if (cmd=="clear")
-        {
+        {   //XXX make clear in a function so that it can be called from the other routines, and clean the yarpviews when any order is called.
             LockGuard lg(mutex);
             contour.clear();
             floodPoints.clear();
