@@ -49,10 +49,10 @@ protected:
     int downsampling;
     double spatial_distance;
     int color_distance;
+    cv::Point coords2D;
     Mutex mutex;    
     bool go,flood3d,flood,seg;
-
-
+    bool coordsGiven;
 
     BufferedPort<ImageOf<PixelMono> > portDispIn;
     BufferedPort<ImageOf<PixelRgb> > portDispOut;
@@ -124,6 +124,7 @@ public:
         attach(portRpc);
 
         go=flood3d=flood=seg=false;
+        coordsGiven = false;
 
         rect =cv::Rect(1, 1, 0,0);
 
@@ -197,6 +198,14 @@ public:
 
             //cv::Rect rect=cv::boundingRect(contour);
             cv::rectangle(imgDispOutMat,rect,cv::Scalar(255,50,0));
+            cv::Point seed;
+            if (coordsGiven){
+                seed.x = coords2D.x;
+                seed.y = coords2D.y;
+            }else  {
+                seed.x = contour.back().x;
+                seed.y = contour.back().y;
+            }
 
 
             if (go||flood3d||flood||seg)
@@ -218,8 +227,8 @@ public:
                     cout << "3D points flood3D "<<endl;
                     Bottle cmd,reply;
                     cmd.addString("Flood3D");
-                    cmd.addInt(contour.back().x);
-                    cmd.addInt(contour.back().y);
+                    cmd.addInt(seed.x);
+                    cmd.addInt(seed.y);
                     cmd.addDouble(spatial_distance);
                     if (portSFM.write(cmd,reply))
                     {
@@ -254,7 +263,6 @@ public:
                     cout << "3D points from 2D color flood "<<endl;
 
                     // Set flooding parameters
-                    cv::Point seed(contour.back().x,contour.back().y);
                     //PixelMono c = imgDispIn->pixel(seed.x,seed.y);
                     cv::Scalar delta(color_distance);
 
@@ -280,8 +288,8 @@ public:
                     // Get segmented region from external segmentation module
                     Bottle cmdSeg, replySeg;
                     cmdSeg.addString("get_component_around");
-                    cmdSeg.addInt(contour.back().x);
-                    cmdSeg.addInt(contour.back().y);
+                    cmdSeg.addInt(seed.x);
+                    cmdSeg.addInt(seed.y);
 
                     if (portSeg.write(cmdSeg,replySeg))
                     {
@@ -381,6 +389,7 @@ public:
                     portPointsOut.unprepare();
                 }
                 go=flood=flood3d=seg=false;
+                coordsGiven = false;
                 points.clear();
                 bpoints.clear();
             }
@@ -464,9 +473,9 @@ public:
             reply.addString("Available commands are:");
             reply.addString("help - produces this help");
             reply.addString("go - gets pointcloud from the selected polygon on the disp image");
-            reply.addString("flood int(color_distance) - gets pointcloud from 2D color flood. User has to select the seed pixel from the disp image");
-            reply.addString("flood3d double(spatial_distance)- gets pointcloud from 3D color flood (based on depth). User has to select the seed pixel from the disp image");
-            reply.addString("seg - gets pointcloud from an externally segmented blob. User has to select the seed pixel from the disp image");
+            reply.addString("flood int(color_distance) int int (coords(opt))- gets pointcloud from 2D color flood. User has to select the seed pixel from the disp image");
+            reply.addString("flood3d double(spatial_distance) int int (coords(opt))- gets pointcloud from 3D color flood (based on depth). User has to select the seed pixel from the disp image");
+            reply.addString("seg int int (coords(opt))- gets pointcloud from an externally segmented blob. User has to select the seed pixel from the disp image");
             reply.addString("setFormat string(fileformat)- sets the format in which the points will be saved. 'fileformat' can be  'ply', 'off' or 'none'.");
             reply.addString("setFileName string(filename)- sets the base name given to the files where the 3D points will be saved. ");
             return true;
@@ -493,6 +502,12 @@ public:
                     if (command.size()>=2)
                         spatial_distance=command.get(1).asDouble();
 
+                    if (command.size()>=4){
+                        coords2D.x=command.get(2).asInt();
+                        coords2D.y=command.get(3).asInt();
+                        coordsGiven = true;
+                    }
+
                     contour.clear();
                     floodPoints.clear();
                     flood3d=true;
@@ -503,6 +518,12 @@ public:
                     if (command.size()>=2)
                         color_distance=command.get(1).asInt();
 
+                    if (command.size()>=4){
+                        coords2D.x=command.get(2).asInt();
+                        coords2D.y=command.get(3).asInt();
+                        coordsGiven = true;
+                    }
+
                     contour.clear();
                     floodPoints.clear();
                     flood=true;
@@ -510,6 +531,12 @@ public:
                 }
                 else if (cmd=="seg")
                 {
+                    if (command.size()>=3){
+                        coords2D.x=command.get(1).asInt();
+                        coords2D.y=command.get(2).asInt();
+                        coordsGiven = true;
+                    }
+
                     contour.clear();
                     seg=true;
                     reply.addVocab(ack);
