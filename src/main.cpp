@@ -187,8 +187,6 @@ public:
         for (size_t i=0; i<floodPoints.size(); i++)
             imgDispOut.pixel(floodPoints[i].x,floodPoints[i].y)=color;
 
-        cout << "contour.size()" <<contour.size() << endl;
-
         if (contour.size()>0)
         {
             vector<vector<cv::Point> > contours;
