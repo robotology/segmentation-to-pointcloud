@@ -49,10 +49,8 @@ protected:
     int downsampling;
     double spatial_distance;
     int color_distance;
-    cv::Point coords2D;
     Mutex mutex;    
     bool go,flood3d,flood,seg;
-    bool coordsGiven;
 
     BufferedPort<ImageOf<PixelMono> > portDispIn;
     BufferedPort<ImageOf<PixelRgb> > portDispOut;
@@ -124,7 +122,6 @@ public:
         attach(portRpc);
 
         go=flood3d=flood=seg=false;
-        coordsGiven = false;
 
         rect =cv::Rect(1, 1, 0,0);
 
@@ -162,7 +159,7 @@ public:
     /*******************************************************************************/
     double getPeriod()
     {
-        return 0.0;
+        return 1.0;
     }
 
     /*******************************************************************************/
@@ -190,6 +187,8 @@ public:
         for (size_t i=0; i<floodPoints.size(); i++)
             imgDispOut.pixel(floodPoints[i].x,floodPoints[i].y)=color;
 
+        cout << "contour.size()" <<contour.size() << endl;
+
         if (contour.size()>0)
         {
             vector<vector<cv::Point> > contours;
@@ -197,15 +196,13 @@ public:
             cv::drawContours(imgDispOutMat,contours,0,cv::Scalar(255,255,0));
 
             //cv::Rect rect=cv::boundingRect(contour);
-            cv::rectangle(imgDispOutMat,rect,cv::Scalar(255,50,0));
+            cv::rectangle(imgDispOutMat,rect,cv::Scalar(255,50,0));            
+
             cv::Point seed;
-            if (coordsGiven){
-                seed.x = coords2D.x;
-                seed.y = coords2D.y;
-            }else  {
-                seed.x = contour.back().x;
-                seed.y = contour.back().y;
-            }
+            seed.x = contour.back().x;
+            seed.y = contour.back().y;
+            cv::circle(imgDispOutMat,seed, 3,cv::Scalar(0,0,255), 2);
+
 
 
             if (go||flood3d||flood||seg)
@@ -389,7 +386,6 @@ public:
                     portPointsOut.unprepare();
                 }
                 go=flood=flood3d=seg=false;
-                coordsGiven = false;
                 points.clear();
                 bpoints.clear();
             }
@@ -499,47 +495,62 @@ public:
                 }
                 else if (cmd=="flood3d")
                 {
-                    if (command.size()>=2)
-                        spatial_distance=command.get(1).asDouble();
-
-                    if (command.size()>=4){
-                        coords2D.x=command.get(2).asInt();
-                        coords2D.y=command.get(3).asInt();
-                        coordsGiven = true;
-                    }
-
+                    reply.addVocab(ack);
                     contour.clear();
                     floodPoints.clear();
+                    if (command.size()>=2){
+                        spatial_distance=command.get(1).asDouble();
+                        reply.addInt(spatial_distance);
+                    }
+
+                    if (command.size()>=4){
+                        cv::Point coords2D;
+                        coords2D.x=command.get(2).asInt();
+                        coords2D.y=command.get(3).asInt();
+                        contour.push_back(coords2D);
+                        reply.addInt(coords2D.x);
+                        reply.addInt(coords2D.y);
+                    }
                     flood3d=true;
-                    reply.addVocab(ack);
+
                 }
                 else if (cmd=="flood")
                 {
-                    if (command.size()>=2)
-                        color_distance=command.get(1).asInt();
-
-                    if (command.size()>=4){
-                        coords2D.x=command.get(2).asInt();
-                        coords2D.y=command.get(3).asInt();
-                        coordsGiven = true;
-                    }
-
+                    reply.addVocab(ack);
                     contour.clear();
                     floodPoints.clear();
+                    if (command.size()>=2){
+                        color_distance=command.get(1).asInt();
+                        reply.addInt(color_distance);
+                    }
+
+                    if (command.size()>=4){
+                        cv::Point coords2D;
+                        coords2D.x=command.get(2).asInt();
+                        coords2D.y=command.get(3).asInt();
+                        contour.push_back(coords2D);
+                        reply.addInt(coords2D.x);
+                        reply.addInt(coords2D.y);
+                    }
+
+
                     flood=true;
-                    reply.addVocab(ack);
+
                 }
                 else if (cmd=="seg")
                 {
+                    contour.clear();
+                    reply.addVocab(ack);
                     if (command.size()>=3){
+                        cv::Point coords2D;
                         coords2D.x=command.get(1).asInt();
                         coords2D.y=command.get(2).asInt();
-                        coordsGiven = true;
-                    }
-
-                    contour.clear();
+                        contour.push_back(coords2D);    
+                        reply.addInt(coords2D.x);
+                        reply.addInt(coords2D.y);
+                    }                   
                     seg=true;
-                    reply.addVocab(ack);
+                    
                 }
             }
         }
