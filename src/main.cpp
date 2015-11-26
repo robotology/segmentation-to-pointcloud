@@ -278,18 +278,25 @@ public:
 
                 }else if (seg)
                 {
-                    cout << "Extracting 3D points from segmentated blob "<<endl;
+                    cout << "Extracting 3D points from segmented blob "<<endl;
 
                     // Get segmented region from external segmentation module
                     Bottle cmdSeg, replySeg;
                     cmdSeg.addString("get_component_around");
                     cmdSeg.addInt(seed.x);
                     cmdSeg.addInt(seed.y);
-
                     if (portSeg.write(cmdSeg,replySeg))
                     {
-
                         Bottle* pixelList=replySeg.get(0).asList();
+
+                        if (pixelList->size()==0)
+                        {
+                            cout << "Empty bottle received" <<endl;
+                            seg=false;
+                            points.clear();
+                            bpoints.clear();
+                            return false;
+                        }
                         cout << "Read " << pixelList->size() << " points from segmentation algorithm" <<endl;
                         cv::Mat binImg = cv::Mat(imgDispInMat.rows, imgDispInMat.cols, CV_8U, 0.0);
                         for (int i=0; i<pixelList->size(); i++)
