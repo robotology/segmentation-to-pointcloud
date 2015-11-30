@@ -295,7 +295,8 @@ public:
                             seg=false;
                             points.clear();
                             bpoints.clear();
-                            return false;
+                            portPointsOut.write(); // Return empty bottle if no data was received.
+                            return true;
                         }
                         cout << "Read " << pixelList->size() << " points from segmentation algorithm" <<endl;
                         cv::Mat binImg = cv::Mat(imgDispInMat.rows, imgDispInMat.cols, CV_8U, 0.0);
@@ -383,6 +384,8 @@ public:
                     }else if (fileFormat == "none"){
                         cout << "Points not saved" << endl;
                     }
+
+                    //--------------------------------------------------------------------------------------------------------------------------//
                     //send the 3D point to portPointsOut, as lists
                     portPointsOut.write();
 
