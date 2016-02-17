@@ -8,26 +8,32 @@
       
         <module>
            <name>SFM</name>
-           <node>console</node>
+           <node>localhost</node>
+           <parameters>--robot icubSim</parameters>
+        </module>
+
+        <module>
+           <name>show3D</name>
+           <node>localhost</node>
            <parameters>--robot icubSim</parameters>
         </module>
 
         <module>
            <name>obj3Drec</name>
            <parameters>--downsampling 1 --spatial_distance 0.004 --color_distance 6 --robot icubSim</parameters>
-           <node>console</node>
+           <node>localhost</node>
         </module>
         
         <module>
             <name>graphBasedSegmentation</name>
             <parameters></parameters>
-            <node>console</node>
+            <node>localhost</node>
         </module>
 
         <module>
            <name>yarpview</name>
            <parameters>--name /disp --out /disp/out --p 33</parameters>
-           <node>console</node>
+           <node>localhost</node>
         </module>
 
         <module>
@@ -39,7 +45,7 @@
         <module>
            <name>yarpview</name>
            <parameters>--name /imLeft --p 33</parameters>
-           <node>console</node>
+           <node>localhost</node>
         </module>
 
         <connection>
@@ -52,6 +58,11 @@
             <to>/SFM/right:i</to>
             <protocol>tcp</protocol>
         </connection>        
+        <connection>
+            <from>/obj3Drec/pnt:o</from>
+            <to>/show3D/clouds:i</to>
+            <protocol>tcp</protocol>
+        </connection>  
                       
         <connection>
             <from>/icubSim/cam/left</from>

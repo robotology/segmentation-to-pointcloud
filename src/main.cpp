@@ -37,8 +37,10 @@ using namespace yarp::math;
 class Obj3DrecModule : public RFModule, public PortReader
 {
 protected:
-    vector<cv::Point> contour;
+
+    vector<cv::Point> contour;    
     vector<cv::Point> floodPoints;
+    cv::Point seed;
     cv::Rect rect;
 
     string homeContextPath;
@@ -56,7 +58,7 @@ protected:
     BufferedPort<ImageOf<PixelRgb> > portDispOut;
     BufferedPort<ImageOf<PixelRgb> > portImgIn;
     BufferedPort<Bottle> portPointsOut;
-    Port portSeedIn;
+    BufferedPort<Bottle> portSeedIn;
     Port portContour;
     RpcClient portSFM;
     RpcClient portSeg;
@@ -118,7 +120,7 @@ public:
 
 
         portContour.setReader(*this);
-        portSeedIn.setReader(*this);
+        //portSeedIn.setReader(*this);
         attach(portRpc);
 
         go=flood3d=flood=seg=false;
@@ -165,6 +167,9 @@ public:
     /*******************************************************************************/
     bool updateModule()
     {
+        //================ Read ports for images and data ====================
+
+        // read images
         ImageOf<PixelMono> *imgDispIn=portDispIn.read();
         if (imgDispIn==NULL)
             return false;
@@ -178,222 +183,181 @@ public:
         ImageOf<PixelRgb> &imgDispOut=portDispOut.prepare();
         imgDispOut.resize(imgDispIn->width(),imgDispIn->height());
 
+        // yarp iamges to openCV
         cv::Mat imgInMat=cv::cvarrToMat((IplImage*)imgIn->getIplImage());
         cv::Mat imgDispInMat=cv::cvarrToMat((IplImage*)imgDispIn->getIplImage());
         cv::Mat imgDispOutMat=cv::cvarrToMat((IplImage*)imgDispOut.getIplImage());
         cv::cvtColor(imgDispInMat,imgDispOutMat,CV_GRAY2RGB);
 
+        // Display on the disparity image the selected points
         PixelRgb color(255,255,0);
         for (size_t i=0; i<floodPoints.size(); i++)
             imgDispOut.pixel(floodPoints[i].x,floodPoints[i].y)=color;
 
-        if (contour.size()>0)
+        // Display on the disparity image the bounding rectangle
+        cv::rectangle(imgDispOutMat,rect,cv::Scalar(255,50,0));
+
+
+        // Read seed point from port
+        Bottle *seedBot = portSeedIn.read(false);
+        if (seedBot!=NULL) {
+            seed.x = seedBot->get(0).asInt();
+            seed.y = seedBot->get(1).asInt();
+        }
+        // Display the seed point on the disparity image too.
+        cv::circle(imgDispOutMat,seed, 3,cv::Scalar(0,0,255), 2);
+
+
+        //================ Get 3D points from diverse segmentation methods ====================
+
+        // Methods with select a regon from a seed point
+        if (flood3d||flood||seg)
         {
-            vector<vector<cv::Point> > contours;
-            contours.push_back(contour);
-            cv::drawContours(imgDispOutMat,contours,0,cv::Scalar(255,255,0));
+            Bottle &bpoints=portPointsOut.prepare();
+            vector<Vector> points;
 
-            //cv::Rect rect=cv::boundingRect(contour);
-            cv::rectangle(imgDispOutMat,rect,cv::Scalar(255,50,0));            
-
-            cv::Point seed;
-            seed.x = contour.back().x;
-            seed.y = contour.back().y;
-            cv::circle(imgDispOutMat,seed, 3,cv::Scalar(0,0,255), 2);
-
-
-
-            if (go||flood3d||flood||seg)
+            if (flood3d)
             {
-                Bottle &bpoints=portPointsOut.prepare();
-
-                vector<Vector> points;                
-
-                if (go)
+                cout << "3D points flood3D "<<endl;
+                Bottle cmd,reply;
+                cmd.addString("Flood3D");
+                cmd.addInt(seed.x);
+                cmd.addInt(seed.y);
+                cmd.addDouble(spatial_distance);
+                if (portSFM.write(cmd,reply))
                 {
-                    cout << "3D points from selected contour "<<endl;
-
-                    pointsFromContour(imgIn, contour, rect, points, bpoints);
-
-                    cout << "Retrieved " << points.size() << " 3D points"  <<endl;
-                }
-                else if (flood3d)
-                {
-                    cout << "3D points flood3D "<<endl;
-                    Bottle cmd,reply;
-                    cmd.addString("Flood3D");
-                    cmd.addInt(seed.x);
-                    cmd.addInt(seed.y);
-                    cmd.addDouble(spatial_distance);
-                    if (portSFM.write(cmd,reply))
+                    for (int i=0; i<reply.size(); i+=5)
                     {
-                        for (int i=0; i<reply.size(); i+=5)
-                        {                            
-                            int x=reply.get(i+0).asInt();
-                            int y=reply.get(i+1).asInt();
-                            PixelRgb px=imgIn->pixel(x,y);
+                        int x=reply.get(i+0).asInt();
+                        int y=reply.get(i+1).asInt();
+                        PixelRgb px=imgIn->pixel(x,y);
 
-                            Vector point(6,0.0);
-                            point[0]=reply.get(i+2).asDouble();
-                            point[1]=reply.get(i+3).asDouble();
-                            point[2]=reply.get(i+4).asDouble();                            
-                            point[3]=px.r;
-                            point[4]=px.g;
-                            point[5]=px.b;
+                        Vector point(6,0.0);
+                        point[0]=reply.get(i+2).asDouble();
+                        point[1]=reply.get(i+3).asDouble();
+                        point[2]=reply.get(i+4).asDouble();
+                        point[3]=px.r;
+                        point[4]=px.g;
+                        point[5]=px.b;
 
-                            points.push_back(point);
-                            floodPoints.push_back(cv::Point(x,y));
-                            
-                            Bottle &bpoint = bpoints.addList();
-                            bpoint.addDouble(point[0]);
-                            bpoint.addDouble(point[1]);
-                            bpoint.addDouble(point[2]);
-                        }
+                        points.push_back(point);
+                        floodPoints.push_back(cv::Point(x,y));
+
+                        Bottle &bpoint = bpoints.addList();
+                        bpoint.addDouble(point[0]);
+                        bpoint.addDouble(point[1]);
+                        bpoint.addDouble(point[2]);
+                    }
+                }
+
+                cout << "Retrieved " << points.size() << " 3D points"  <<endl;
+            }
+            else if (flood)
+            {
+                cout << "3D points from 2D color flood "<<endl;
+
+                // Set flooding parameters
+                //PixelMono c = imgDispIn->pixel(seed.x,seed.y);
+                cv::Scalar delta(color_distance);
+
+                // flood region and copy flood onto mask
+                cv::Mat mask = cv::Mat::zeros(imgInMat.rows + 2, imgInMat.cols + 2, CV_8U);
+                cv::floodFill(imgDispInMat, mask, seed, cv::Scalar(255), NULL, delta, delta,  4 + (255 << 8) | cv::FLOODFILL_FIXED_RANGE| cv::FLOODFILL_MASK_ONLY);
+
+                // Get the contours of the color flooded region from mask.
+                vector<vector<cv::Point> > contoursFlood;
+                vector<cv::Vec4i> hierarchy;
+                cv::findContours(mask, contoursFlood, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
+                vector<cv::Point> contourFlood = contoursFlood[0];
+
+                // Get the 3D points from the 2D points within the contour.
+                pointsFromContour(imgIn, contourFlood, rect, points, bpoints);
+
+                cout << "Retrieved " << points.size() << " 3D points"  <<endl;
+
+            }else if (seg)
+            {
+                cout << "Extracting 3D points from segmented blob "<<endl;
+
+                // Get segmented region from external segmentation module
+                Bottle cmdSeg, replySeg;
+                cmdSeg.addString("get_component_around");
+                cmdSeg.addInt(seed.x);
+                cmdSeg.addInt(seed.y);
+                if (portSeg.write(cmdSeg,replySeg))
+                {
+                    Bottle* pixelList=replySeg.get(0).asList();
+
+                    if (pixelList->size()==0)
+                    {
+                        cout << "Empty bottle received" <<endl;
+                        seg=false;
+                        points.clear();
+                        bpoints.clear();
+                        portPointsOut.write(); // Return empty bottle if no data was received.
+                        return true;
+                    }
+                    cout << "Read " << pixelList->size() << " points from segmentation algorithm" <<endl;
+                    cv::Mat binImg = cv::Mat(imgDispInMat.rows, imgDispInMat.cols, CV_8U, 0.0);
+                    for (int i=0; i<pixelList->size(); i++)
+                    {
+                        Bottle* point=pixelList->get(i).asList();
+                        int x = point->get(0).asDouble();
+                        int y = point->get(1).asDouble();
+                        binImg.at<uchar>(y,x) = 255;
                     }
 
-                    cout << "Retrieved " << points.size() << " 3D points"  <<endl;
-                }
-                else if (flood)
-                {                    
-                    cout << "3D points from 2D color flood "<<endl;
-
-                    // Set flooding parameters
-                    //PixelMono c = imgDispIn->pixel(seed.x,seed.y);
-                    cv::Scalar delta(color_distance);
-
-                    // flood region and copy flood onto mask
-                    cv::Mat mask = cv::Mat::zeros(imgInMat.rows + 2, imgInMat.cols + 2, CV_8U);
-                    cv::floodFill(imgDispInMat, mask, seed, cv::Scalar(255), NULL, delta, delta,  4 + (255 << 8) | cv::FLOODFILL_FIXED_RANGE| cv::FLOODFILL_MASK_ONLY);
-
-                    // Get the contours of the color flooded region from mask.
-                    vector<vector<cv::Point> > contoursFlood;
+                    // Get the contours of the segmented region.
+                    vector<vector<cv::Point> > contoursSeg;
                     vector<cv::Vec4i> hierarchy;
-                    cv::findContours(mask, contoursFlood, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
-                    vector<cv::Point> contourFlood = contoursFlood[0];
+                    cv::findContours(binImg, contoursSeg, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
+                    vector<cv::Point> contourSeg = contoursSeg[0];
+                    //cout << "Contours extracted."  <<endl;
 
                     // Get the 3D points from the 2D points within the contour.
-                    pointsFromContour(imgIn, contourFlood, rect, points, bpoints);
+                    pointsFromContour(imgIn, contourSeg, rect, points, bpoints);
 
                     cout << "Retrieved " << points.size() << " 3D points"  <<endl;
-
-                }else if (seg)
-                {
-                    cout << "Extracting 3D points from segmented blob "<<endl;
-
-                    // Get segmented region from external segmentation module
-                    Bottle cmdSeg, replySeg;
-                    cmdSeg.addString("get_component_around");
-                    cmdSeg.addInt(seed.x);
-                    cmdSeg.addInt(seed.y);
-                    if (portSeg.write(cmdSeg,replySeg))
-                    {
-                        Bottle* pixelList=replySeg.get(0).asList();
-
-                        if (pixelList->size()==0)
-                        {
-                            cout << "Empty bottle received" <<endl;
-                            seg=false;
-                            points.clear();
-                            bpoints.clear();
-                            portPointsOut.write(); // Return empty bottle if no data was received.
-                            return true;
-                        }
-                        cout << "Read " << pixelList->size() << " points from segmentation algorithm" <<endl;
-                        cv::Mat binImg = cv::Mat(imgDispInMat.rows, imgDispInMat.cols, CV_8U, 0.0);
-                        for (int i=0; i<pixelList->size(); i++)
-                        {
-                            Bottle* point=pixelList->get(i).asList();
-                            int x = point->get(0).asDouble();
-                            int y = point->get(1).asDouble();
-                            binImg.at<uchar>(y,x) = 255;
-                        }
-
-                        // Get the contours of the segmented region.
-                        vector<vector<cv::Point> > contoursSeg;
-                        vector<cv::Vec4i> hierarchy;
-                        cv::findContours(binImg, contoursSeg, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
-                        vector<cv::Point> contourSeg = contoursSeg[0];
-                        //cout << "Contours extracted."  <<endl;
-
-                        // Get the 3D points from the 2D points within the contour.
-                        pointsFromContour(imgIn, contourSeg, rect, points, bpoints);
-
-                        cout << "Retrieved " << points.size() << " 3D points"  <<endl;
-                    }
                 }
+            }
 
-                //--------------------------------------------------------------------------------------------------------------------------//
-                // Save points in the desired format
-                if (points.size()>0)
-                {
-                    ofstream fout;
-                    stringstream fileName;
-                    string fileNameFormat;
-                    fileName.str("");
-                    fileName << homeContextPath + "/" + savename.c_str() << fileCount;
+            if (points.size()>0) {
+                portPointsOut.write();
+            }else                {
+                portPointsOut.unprepare();
+            }
 
-                    if (fileFormat == "ply")
-                    {
-                        fileNameFormat = fileName.str()+".ply";
-                        cout << "Saving as " << fileNameFormat << endl;
-                        fout.open(fileNameFormat.c_str());
-                        if (fout.is_open())
-                        {
-                            fout << "ply\n";
-                            fout << "format ascii 1.0\n";
-                            fout << "element vertex " << points.size() <<"\n";
-                            fout << "property float x\n";
-                            fout << "property float y\n";
-                            fout << "property float z\n";
-                            fout << "property uchar diffuse_red\n";
-                            fout << "property uchar diffuse_green\n";
-                            fout << "property uchar diffuse_blue\n";
-                            fout << "end_header\n";
+            points.clear();
+            bpoints.clear();
+            flood=flood3d=seg=false;
+        }
 
-                            for (unsigned int i=0; i<points.size(); i++){
-                                fout << points[i][0] << " " <<      points[i][1] << " " <<      points[i][2] << " " << (int)points[i][3] << " " << (int)points[i][4] << " " << (int)points[i][5] << "\n";
-                                //plyfile << cloud->at(i).x << " " << cloud->at(i).y << " " << cloud->at(i).z << " " << (int)cloud->at(i).r << " " << (int)cloud->at(i).g << " " << (int)cloud->at(i).b << "\n";
-                            }
 
-                            fout.close();
-                            cout << "Points saved as " << fileNameFormat << endl;
-                            fileCount++;
-                        }
-                    }else if (fileFormat == "off"){
-                        fileNameFormat = fileName.str()+".off";
-                        cout << "Saving as " << fileNameFormat << endl;
-                        fout.open(fileNameFormat.c_str());
-                        if (fout.is_open())
-                        {
+        // Region is given by contour selected on disp image
+        if (contour.size()>0)
+        {
+            Bottle &bpoints=portPointsOut.prepare();
+            vector<Vector> points;
 
-                            fout<<"COFF"<<endl;
-                            fout<<points.size()<<" 0 0"<<endl;
-                            fout<<endl;
-                            for (size_t i=0; i<points.size(); i++)
-                            {
-                                fout<<points[i].subVector(0,2).toString(3,4).c_str()<<" "<<
-                                      points[i].subVector(3,5).toString(0,3).c_str()<<endl;
-                            }
-                            fout<<endl;
-                        }
+            vector<vector<cv::Point> > contours;
+            contours.push_back(contour);            
+            cv::drawContours(imgDispOutMat,contours,0,cv::Scalar(255,255,0));
 
-                        fout.close();
-                        cout << "Points saved as " << fileNameFormat << endl;
-                        fileCount++;
+            if (go)
+            {
+                cout << "3D points from selected contour "<<endl;
 
-                    }else if (fileFormat == "none"){
-                        cout << "Points not saved" << endl;
-                    }
+                pointsFromContour(imgIn, contour, rect, points, bpoints);
 
-                    //--------------------------------------------------------------------------------------------------------------------------//
-                    //send the 3D point to portPointsOut, as lists
+                cout << "Retrieved " << points.size() << " 3D points"  <<endl;
+
+                if (points.size()>0) {
                     portPointsOut.write();
-
-                }else
-                {
+                }else                {
                     portPointsOut.unprepare();
                 }
-                go=flood=flood3d=seg=false;
+
+                go =false;
                 points.clear();
                 bpoints.clear();
             }
@@ -403,6 +367,76 @@ public:
         return true;
     }
 
+
+    /*******************************************************************************/
+    bool savePoints (vector<Vector> points)
+    {        // Save points in the desired format
+        if (points.size()>0)
+        {
+            ofstream fout;
+            stringstream fileName;
+            string fileNameFormat;
+            fileName.str("");
+            fileName << homeContextPath + "/" + savename.c_str() << fileCount;
+
+            if (fileFormat == "ply")
+            {
+                fileNameFormat = fileName.str()+".ply";
+                cout << "Saving as " << fileNameFormat << endl;
+                fout.open(fileNameFormat.c_str());
+                if (fout.is_open())
+                {
+                    fout << "ply\n";
+                    fout << "format ascii 1.0\n";
+                    fout << "element vertex " << points.size() <<"\n";
+                    fout << "property float x\n";
+                    fout << "property float y\n";
+                    fout << "property float z\n";
+                    fout << "property uchar diffuse_red\n";
+                    fout << "property uchar diffuse_green\n";
+                    fout << "property uchar diffuse_blue\n";
+                    fout << "end_header\n";
+
+                    for (unsigned int i=0; i<points.size(); i++){
+                        fout << points[i][0] << " " <<      points[i][1] << " " <<      points[i][2] << " " << (int)points[i][3] << " " << (int)points[i][4] << " " << (int)points[i][5] << "\n";
+                        //plyfile << cloud->at(i).x << " " << cloud->at(i).y << " " << cloud->at(i).z << " " << (int)cloud->at(i).r << " " << (int)cloud->at(i).g << " " << (int)cloud->at(i).b << "\n";
+                    }
+
+                    fout.close();
+                    cout << "Points saved as " << fileNameFormat << endl;
+                    fileCount++;
+                }
+            }else if (fileFormat == "off"){
+                fileNameFormat = fileName.str()+".off";
+                cout << "Saving as " << fileNameFormat << endl;
+                fout.open(fileNameFormat.c_str());
+                if (fout.is_open())
+                {
+
+                    fout<<"COFF"<<endl;
+                    fout<<points.size()<<" 0 0"<<endl;
+                    fout<<endl;
+                    for (size_t i=0; i<points.size(); i++)
+                    {
+                        fout<<points[i].subVector(0,2).toString(3,4).c_str()<<" "<<
+                              points[i].subVector(3,5).toString(0,3).c_str()<<endl;
+                    }
+                    fout<<endl;
+                }
+
+                fout.close();
+                cout << "Points saved as " << fileNameFormat << endl;
+                fileCount++;
+
+            }else if (fileFormat == "none"){
+                cout << "Points not saved" << endl;
+            }
+
+            return true;
+        }
+        cout << "Point cloud is empty, could not save" << endl;
+        return false;
+    }
 
     /*******************************************************************************/
     bool pointsFromContour(const ImageOf<PixelRgb> *imgIn, const vector<cv::Point> contourIn, cv::Rect &boundBox, vector<Vector> &pointsInContour, Bottle &bpoints)
@@ -519,7 +553,7 @@ public:
                         reply.addInt(coords2D.x);
                         reply.addInt(coords2D.y);
                     }
-                    flood3d=true;
+                    flood3d = true;
 
                 }
                 else if (cmd=="flood")
