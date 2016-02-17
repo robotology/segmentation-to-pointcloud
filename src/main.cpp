@@ -92,7 +92,7 @@ public:
         fileCount = 0;
 
         downsampling=std::max(1,rf.check("downsampling",Value(1)).asInt());
-        spatial_distance=rf.check("spatial_distance",Value(0.004)).asDouble();
+        spatial_distance=rf.check("spatial_distance",Value(0.01)).asDouble();
         color_distance=rf.check("color_distance",Value(6)).asInt();
 
 
