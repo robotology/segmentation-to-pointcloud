@@ -53,6 +53,7 @@ protected:
     int color_distance;
     Mutex mutex;    
     bool go,flood3d,flood,seg;
+    bool seedSet;
 
     BufferedPort<ImageOf<PixelMono> > portDispIn;
     BufferedPort<ImageOf<PixelRgb> > portDispOut;
@@ -124,6 +125,7 @@ public:
         attach(portRpc);
 
         go=flood3d=flood=seg=false;
+        seedSet = false;
 
         rect =cv::Rect(1, 1, 0,0);
 
@@ -197,13 +199,6 @@ public:
         // Display on the disparity image the bounding rectangle
         cv::rectangle(imgDispOutMat,rect,cv::Scalar(255,50,0));
 
-
-        // Read seed point from port
-        Bottle *seedBot = portSeedIn.read(false);
-        if (seedBot!=NULL) {
-            seed.x = seedBot->get(0).asInt();
-            seed.y = seedBot->get(1).asInt();
-        }
         // Display the seed point on the disparity image too.
         cv::circle(imgDispOutMat,seed, 3,cv::Scalar(0,0,255), 2);
 
@@ -215,6 +210,15 @@ public:
         {
             Bottle &bpoints=portPointsOut.prepare();
             vector<Vector> points;
+
+            // Read seed point from port
+            if (!seedSet){
+                Bottle *seedBot = portSeedIn.read(true);
+                if (seedBot!=NULL) {
+                    seed.x = seedBot->get(0).asInt();
+                    seed.y = seedBot->get(1).asInt();
+                }
+            }
 
             if (flood3d)
             {
@@ -330,6 +334,7 @@ public:
             points.clear();
             bpoints.clear();
             flood=flood3d=seg=false;
+            seedSet =false;
         }
 
 
@@ -360,6 +365,7 @@ public:
                 go =false;
                 points.clear();
                 bpoints.clear();
+                contour.clear();
             }
         }
 
@@ -489,6 +495,18 @@ public:
             }
         }
     }
+
+
+    /*******************************************************************************/
+    bool clearExe()
+    {
+        contour.clear();
+        floodPoints.clear();
+        rect = cv::Rect(1,1,0,0);
+        go=flood3d=flood=seg=false;
+        return true;
+    }
+
     /*******************************************************************************/
     bool respond(const Bottle &command, Bottle &reply)
     {
@@ -497,12 +515,8 @@ public:
         int nack=Vocab::encode("nack");
 
         if (cmd=="clear")
-        {   //XXX make clear in a function so that it can be called from the other routines, and clean the yarpviews when any order is called.
-            LockGuard lg(mutex);
-            contour.clear();
-            floodPoints.clear();
-            rect = cv::Rect(1,1,0,0);            
-            go=flood3d=flood=seg=false;
+        {
+            clearExe();
             reply.addVocab(ack);
         }
         else if (cmd=="help")
@@ -536,9 +550,7 @@ public:
                         reply.addVocab(nack);
                 }
                 else if (cmd=="flood3d")
-                {
-                    reply.addVocab(ack);
-                    contour.clear();
+                {                    
                     floodPoints.clear();
                     if (command.size()>=2){
                         spatial_distance=command.get(1).asDouble();
@@ -547,19 +559,19 @@ public:
 
                     if (command.size()>=4){
                         cv::Point coords2D;
-                        coords2D.x=command.get(2).asInt();
-                        coords2D.y=command.get(3).asInt();
-                        contour.push_back(coords2D);
-                        reply.addInt(coords2D.x);
-                        reply.addInt(coords2D.y);
+                        seed.x=command.get(2).asInt();
+                        seed.y=command.get(3).asInt();
+                        reply.addInt(seed.x);
+                        reply.addInt(seed.y);
+                        seedSet = true;
                     }
+                    reply.addVocab(ack);
                     flood3d = true;
 
                 }
                 else if (cmd=="flood")
                 {
-                    reply.addVocab(ack);
-                    contour.clear();
+
                     floodPoints.clear();
                     if (command.size()>=2){
                         color_distance=command.get(1).asInt();
@@ -568,31 +580,31 @@ public:
 
                     if (command.size()>=4){
                         cv::Point coords2D;
-                        coords2D.x=command.get(2).asInt();
-                        coords2D.y=command.get(3).asInt();
-                        contour.push_back(coords2D);
-                        reply.addInt(coords2D.x);
-                        reply.addInt(coords2D.y);
+                        seed.x=command.get(2).asInt();
+                        seed.y=command.get(3).asInt();
+                        contour.push_back(seed);
+                        reply.addInt(seed.x);
+                        reply.addInt(seed.y);
+                        seedSet = true;
                     }
 
-
+                    reply.addVocab(ack);
                     flood=true;
 
                 }
                 else if (cmd=="seg")
                 {
-                    contour.clear();
-                    reply.addVocab(ack);
+                    floodPoints.clear();
                     if (command.size()>=3){
                         cv::Point coords2D;
-                        coords2D.x=command.get(1).asInt();
-                        coords2D.y=command.get(2).asInt();
-                        contour.push_back(coords2D);    
-                        reply.addInt(coords2D.x);
-                        reply.addInt(coords2D.y);
-                    }                   
-                    seg=true;
-                    
+                        seed.x=command.get(1).asInt();
+                        seed.y=command.get(2).asInt();
+                        reply.addInt(seed.x);
+                        reply.addInt(seed.y);
+                        seedSet = true;
+                    }
+                    reply.addVocab(ack);
+                    seg=true;                    
                 }
             }
         }
