@@ -22,6 +22,8 @@
 #include <iomanip>
 
 #include <opencv2/opencv.hpp>
+#include <opencv/cv.h>
+#include <opencv2/highgui/highgui.hpp>
 
 #include <yarp/os/all.h>
 #include <yarp/sig/all.h>
@@ -51,6 +53,7 @@ protected:
     int color_distance;
     Mutex mutex;    
     bool go,flood3d,flood,seg;
+    bool seedAuto;
 
     BufferedPort<ImageOf<PixelMono> > portDispIn;
     BufferedPort<ImageOf<PixelRgb> > portDispOut;
@@ -122,6 +125,8 @@ public:
         attach(portRpc);
 
         go=flood3d=flood=seg=false;
+
+        seedAuto = false;
 
         rect =cv::Rect(1, 1, 0,0);
 
@@ -196,9 +201,14 @@ public:
             //cv::Rect rect=cv::boundingRect(contour);
             cv::rectangle(imgDispOutMat,rect,cv::Scalar(255,50,0));            
 
-            cv::Point seed;
-            seed.x = contour.back().x;
-            seed.y = contour.back().y;
+            cv::Point2i seed;
+            if (seedAuto){
+                getDepthSeed(imgDispInMat,seed);
+            }else{
+                seed.x = contour.back().x;
+                seed.y = contour.back().y;
+            }
+
             cv::circle(imgDispOutMat,seed, 3,cv::Scalar(0,0,255), 2);
 
 
@@ -455,6 +465,121 @@ public:
             }
         }
     }
+
+
+
+    bool getDepthSeed(const cv::Mat &disparity,cv::Point2i &seed)
+    {
+
+        cv::Mat depth = disparity.clone();
+
+        cv::cvtColor(depth, depth, CV_BGR2GRAY);
+
+
+        /* Filter */
+        int gaussSize = 5;
+        double sigmaX1 = 1.5;
+        double sigmaY1 = 1.5;
+        cv::GaussianBlur(depth, depth, cv::Size(gaussSize,gaussSize), sigmaX1, sigmaY1);
+
+        cv::threshold(depth, depth, 30, -1, CV_THRESH_TOZERO);
+
+        int dilate_niter = 4;
+        int erode_niter = 2;
+        double sigmaX2 = 2;
+        double sigmaY2 = 2;
+
+        cv::dilate(depth, depth, cv::Mat(), cv::Point(-1,-1), dilate_niter, cv::BORDER_CONSTANT, cv::morphologyDefaultBorderValue());
+
+        cv::GaussianBlur(depth, depth, cv::Size(gaussSize,gaussSize), sigmaX2, sigmaY2, cv::BORDER_DEFAULT);
+
+        cv::erode(depth, depth, cv::Mat(), cv::Point(-1,-1), erode_niter, cv::BORDER_CONSTANT, cv::morphologyDefaultBorderValue());
+
+
+        /* Find closest valid blob */
+
+        double minVal, maxVal;
+        cv::Point minLoc, maxLoc;
+
+        int fillFlags = 8 | ( 255 << 8 ) | cv::FLOODFILL_FIXED_RANGE; // flags for floodFill
+
+        cv::Mat aux = depth.clone();
+
+        int minBlobSize = 300;
+        int fillSize = 0;
+        int imageThreshRatioLow = 10;
+        int imageThreshRatioHigh = 20;
+        while (fillSize < minBlobSize){
+
+            cv::minMaxLoc( aux, &minVal, &maxVal, &minLoc, &maxLoc );
+
+            // if its too small, paint it black and search again
+            fillSize = floodFill(aux, maxLoc, 0, 0, cv::Scalar(maxVal/imageThreshRatioLow), cv::Scalar(maxVal/imageThreshRatioHigh), fillFlags);
+
+        }
+        // paint closest valid blob white
+        cv::Mat fillMask;
+        fillMask.setTo(0);
+        cv::floodFill(depth, fillMask, maxLoc, 255, 0, cv::Scalar(maxVal/imageThreshRatioLow), cv::Scalar(maxVal/imageThreshRatioHigh), cv::FLOODFILL_MASK_ONLY + fillFlags);
+
+        /* Find contours */
+
+        std::vector<std::vector<cv::Point > > contours;
+        std::vector<cv::Vec4i> hierarchy;
+
+        // use aux because findContours modify the input image
+        aux = fillMask(cv::Range(1,depth.rows+1), cv::Range(1,depth.cols+1)).clone();
+        cv::findContours( aux, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE, cv::Point(0, 0) );
+
+
+        /* If any blob is found check again that only the biggest valid blob is selected */
+
+        int blobI = -1;
+        double blobSizeOld = -1, blobSize = -1;
+        for( int c = 0; c < contours.size(); c++ ){
+
+            // find the area of contour
+            blobSize = cv::contourArea(contours[c]);
+
+            // select only the biggest valid blob
+            if( blobSize > minBlobSize && blobSize > blobSizeOld)
+            {
+                blobI = c;
+                blobSizeOld = blobSize;
+            }
+        }
+
+        /* If any blob is found (after the double-check) */
+        if (blobI>=0)
+        {
+            /* Get the Bounding Box */
+            cv::Rect blobBox = cv::boundingRect(contours[blobI]);
+
+            double seedValid = -1;      // false
+            cv::Point2i seedAux;
+            seedAux.x = blobBox.tl().x;
+            seedAux.y = blobBox.tl().y;
+            while (seedValid < 0){
+                seedAux.x = seedAux.x + 2;
+                seedAux.y = seedAux.y + 2;
+
+                if ((seedAux.x > blobBox.br().x ) ||(seedAux.y > blobBox.br().y )){
+                    cout << "Seed could not be found"<< endl;
+                    return false;
+                }
+
+                seedValid = pointPolygonTest(contours[blobI], seedAux, false );
+            }
+
+            seed.x = seedAux.x;
+            seed.y = seedAux.y;
+        }
+        return true;
+    }
+
+
+
+
     /*******************************************************************************/
     bool respond(const Bottle &command, Bottle &reply)
     {
@@ -470,12 +595,22 @@ public:
             rect = cv::Rect(1,1,0,0);            
             go=flood3d=flood=seg=false;
             reply.addVocab(ack);
+            return true;
         }
+
+        else if (cmd=="seedAuto"){
+            seedAuto = command.get(1).asBool();
+            reply.addVocab(ack);
+            return true;
+        }
+
         else if (cmd=="help")
         {
             reply.addVocab(Vocab::encode("many"));
             reply.addString("Available commands are:");
             reply.addString("help - produces this help");
+            reply.addString("clear - Clears displays and saved points");
+            reply.addString("seedAtuo (bool) - Toggles from manual (click) seed to 'automatic' one for flood3d");
             reply.addString("go - gets pointcloud from the selected polygon on the disp image");
             reply.addString("flood int(color_distance) int int (coords(opt))- gets pointcloud from 2D color flood. User has to select the seed pixel from the disp image");
             reply.addString("flood3d double(spatial_distance) int int (coords(opt))- gets pointcloud from 3D color flood (based on depth). User has to select the seed pixel from the disp image");
