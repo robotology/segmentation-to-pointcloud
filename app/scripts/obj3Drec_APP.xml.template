@@ -13,7 +13,7 @@
 
         <module>
            <name>obj3Drec</name>
-           <parameters>--downsampling 1 --spatial_distance 0.004 --color_distance 6</parameters>
+           <parameters>--downsampling 1 --spatial_distance 0.01 --color_distance 6</parameters>
            <node>console</node>
         </module>
         
