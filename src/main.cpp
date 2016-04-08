@@ -230,23 +230,23 @@ public:
                 else if (flood3d)
                 {
                     cout << "3D points flood3D "<<endl;
-                    Bottle cmd,reply;
-                    cmd.addString("Flood3D");
-                    cmd.addInt(seed.x);
-                    cmd.addInt(seed.y);
-                    cmd.addDouble(spatial_distance);
-                    if (portSFM.write(cmd,reply))
+                    Bottle cmdSFM,replySFM;
+                    cmdSFM.addString("Flood3D");
+                    cmdSFM.addInt(seed.x);
+                    cmdSFM.addInt(seed.y);
+                    cmdSFM.addDouble(spatial_distance);
+                    if (portSFM.write(cmdSFM,replySFM))
                     {
-                        for (int i=0; i<reply.size(); i+=5)
+                        for (int i=0; i<replySFM.size(); i+=5)
                         {                            
-                            int x=reply.get(i+0).asInt();
-                            int y=reply.get(i+1).asInt();
+                            int x=replySFM.get(i+0).asInt();
+                            int y=replySFM.get(i+1).asInt();
                             PixelRgb px=imgIn->pixel(x,y);
 
                             Vector point(6,0.0);
-                            point[0]=reply.get(i+2).asDouble();
-                            point[1]=reply.get(i+3).asDouble();
-                            point[2]=reply.get(i+4).asDouble();                            
+                            point[0]=replySFM.get(i+2).asDouble();
+                            point[1]=replySFM.get(i+3).asDouble();
+                            point[2]=replySFM.get(i+4).asDouble();
                             point[3]=px.r;
                             point[4]=px.g;
                             point[5]=px.b;
@@ -263,6 +263,7 @@ public:
 
                     cout << "Retrieved " << points.size() << " 3D points"  <<endl;
                 }
+
                 else if (flood)
                 {                    
                     cout << "3D points from 2D color flood "<<endl;
@@ -472,7 +473,6 @@ public:
     {
 
         cv::Mat depth = disparity.clone();
-
         cv::cvtColor(depth, depth, CV_BGR2GRAY);
 
 
@@ -497,7 +497,6 @@ public:
 
 
         /* Find closest valid blob */
-
         double minVal, maxVal;
         cv::Point minLoc, maxLoc;
 
@@ -518,22 +517,24 @@ public:
 
         }
         // paint closest valid blob white
-        cv::Mat fillMask;
+        cv::Mat fillMask(depth.rows+2, depth.cols+2, CV_8U);
         fillMask.setTo(0);
         cv::floodFill(depth, fillMask, maxLoc, 255, 0, cv::Scalar(maxVal/imageThreshRatioLow), cv::Scalar(maxVal/imageThreshRatioHigh), cv::FLOODFILL_MASK_ONLY + fillFlags);
 
-        /* Find contours */
+        cv::namedWindow( "blob", CV_WINDOW_AUTOSIZE );
+        cv::imshow( "blob",fillMask);
+        cv::waitKey(0);
 
+        /* Find contours */
         std::vector<std::vector<cv::Point > > contours;
         std::vector<cv::Vec4i> hierarchy;
 
-        // use aux because findContours modify the input image
+        // use aux because findContours modifies the input image
         aux = fillMask(cv::Range(1,depth.rows+1), cv::Range(1,depth.cols+1)).clone();
         cv::findContours( aux, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE, cv::Point(0, 0) );
 
 
         /* If any blob is found check again that only the biggest valid blob is selected */
-
         int blobI = -1;
         double blobSizeOld = -1, blobSize = -1;
         for( int c = 0; c < contours.size(); c++ ){
@@ -559,9 +560,12 @@ public:
             cv::Point2i seedAux;
             seedAux.x = blobBox.tl().x;
             seedAux.y = blobBox.tl().y;
-            while (seedValid < 0){
+            while (seedValid < 0){              // Move diagonally through the image until a point inside the blob is found.
                 seedAux.x = seedAux.x + 2;
                 seedAux.y = seedAux.y + 2;
+
+
+                cv::circle(depth, seedAux, 1, cv::Scalar(0,0,0),2);
 
                 if ((seedAux.x > blobBox.br().x ) ||(seedAux.y > blobBox.br().y )){
                     cout << "Seed could not be found"<< endl;
@@ -574,6 +578,11 @@ public:
             seed.x = seedAux.x;
             seed.y = seedAux.y;
         }
+
+        cv::namedWindow( "proc", CV_WINDOW_AUTOSIZE );
+        cv::imshow("proc",depth);
+        cv::waitKey(0);
+
         return true;
     }
 
@@ -600,6 +609,29 @@ public:
 
         else if (cmd=="seedAuto"){
             seedAuto = command.get(1).asBool();
+
+            reply.addVocab(ack);
+            return true;
+        }
+        else if (cmd=="testAuto"){
+
+            cout << " Testing autoseeder" << endl;
+
+            string imFile = command.get(1).asString();
+            cv::Mat image = cv::imread(imFile,1);
+
+            cout << "Read image of size " << image.rows << ", " << image.cols << endl;
+
+            cout << " Getting seed from depth" << endl;
+            cv::Point2i seed;
+            getDepthSeed(image,seed);
+
+            cv::circle(image,seed,3,cv::Scalar(0,0 ,0),3);
+
+            cv::namedWindow( "Im", cv::WINDOW_AUTOSIZE );    // Create a window for display.
+            cv::imshow( "Im", image );                   // Show our image inside it.
+            cv::waitKey(0);
+
             reply.addVocab(ack);
             return true;
         }
@@ -611,6 +643,7 @@ public:
             reply.addString("help - produces this help");
             reply.addString("clear - Clears displays and saved points");
             reply.addString("seedAtuo (bool) - Toggles from manual (click) seed to 'automatic' one for flood3d");
+            reply.addString("testAuto - Runs the test for automatic seed detection");
             reply.addString("go - gets pointcloud from the selected polygon on the disp image");
             reply.addString("flood int(color_distance) int int (coords(opt))- gets pointcloud from 2D color flood. User has to select the seed pixel from the disp image");
             reply.addString("flood3d double(spatial_distance) int int (coords(opt))- gets pointcloud from 3D color flood (based on depth). User has to select the seed pixel from the disp image");
