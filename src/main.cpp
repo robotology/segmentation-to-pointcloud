@@ -126,7 +126,7 @@ public:
 
         go=flood3d=flood=seg=false;
 
-        seedAuto = false;
+        seedAuto = true;
 
         rect =cv::Rect(1, 1, 0,0);
 
@@ -471,7 +471,7 @@ public:
 
     bool getDepthSeed(const cv::Mat &disparity,cv::Point2i &seed)
     {
-
+        cout << "Finding seed automatically" << endl;
         cv::Mat depth = disparity.clone();
         cv::cvtColor(depth, depth, CV_BGR2GRAY);
 
@@ -520,10 +520,6 @@ public:
         cv::Mat fillMask(depth.rows+2, depth.cols+2, CV_8U);
         fillMask.setTo(0);
         cv::floodFill(depth, fillMask, maxLoc, 255, 0, cv::Scalar(maxVal/imageThreshRatioLow), cv::Scalar(maxVal/imageThreshRatioHigh), cv::FLOODFILL_MASK_ONLY + fillFlags);
-
-        cv::namedWindow( "blob", CV_WINDOW_AUTOSIZE );
-        cv::imshow( "blob",fillMask);
-        cv::waitKey(0);
 
         /* Find contours */
         std::vector<std::vector<cv::Point > > contours;
@@ -579,9 +575,7 @@ public:
             seed.y = seedAux.y;
         }
 
-        cv::namedWindow( "proc", CV_WINDOW_AUTOSIZE );
-        cv::imshow("proc",depth);
-        cv::waitKey(0);
+        cout << "Seed found at " << seed.x << " ," << seed.y << endl;
 
         return true;
     }
@@ -626,12 +620,6 @@ public:
             cv::Point2i seed;
             getDepthSeed(image,seed);
 
-            cv::circle(image,seed,3,cv::Scalar(0,0 ,0),3);
-
-            cv::namedWindow( "Im", cv::WINDOW_AUTOSIZE );    // Create a window for display.
-            cv::imshow( "Im", image );                   // Show our image inside it.
-            cv::waitKey(0);
-
             reply.addVocab(ack);
             return true;
         }
@@ -642,7 +630,7 @@ public:
             reply.addString("Available commands are:");
             reply.addString("help - produces this help");
             reply.addString("clear - Clears displays and saved points");
-            reply.addString("seedAtuo (bool) - Toggles from manual (click) seed to 'automatic' one for flood3d");
+            reply.addString("seedAuto (bool) - Toggles from manual (click) seed to 'automatic' one for flood3d");
             reply.addString("testAuto - Runs the test for automatic seed detection");
             reply.addString("go - gets pointcloud from the selected polygon on the disp image");
             reply.addString("flood int(color_distance) int int (coords(opt))- gets pointcloud from 2D color flood. User has to select the seed pixel from the disp image");
