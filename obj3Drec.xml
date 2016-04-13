@@ -31,7 +31,7 @@
             <port carrier="tcp">/obj3Drec/rpc:i</port>
             <description> Takes the following RPC commands from Human or stateMachine
                 -# <b>help</b>:  produces this help.
-                -# <b>go</b>: gets pointcloud from the selected polygon on the disp image.
+                -# <b>polygon</b>: gets pointcloud from the selected polygon on the disp image.
                 -# <b>flood int(color_distance) </b>: gets pointcloud from 2D color flood. User has to select the seed pixel from the disp image.
                 -# <b>flood3D double(spatial_distance) </b>: gets pointcloud from 3D color flood (based on depth). User has to select the seed pixel from the disp image.
                 -# <b>seg</b>: gets pointcloud from an externally segmented blob. User has to select the seed pixel from the segmented image.

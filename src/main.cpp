@@ -202,10 +202,14 @@ public:
         cv::rectangle(imgDispOutMat,rect,cv::Scalar(255,50,0));
 
         if ((seed.x>0) && (seed.y>0)){
+            clearRec();
             cv::circle(imgDispOutMat,seed, 3,cv::Scalar(0,0,255), 2);
+
         }
 
         if (polygon||flood3d||flood||seg){
+
+            clearRec();
 
             // Create variables to store points in any case
             Bottle &bpoints=portPointsOut.prepare();
@@ -229,12 +233,22 @@ public:
 
             } else if (flood3d)
             {
+                 cout << "Getting seed "<<endl;
+
                 // Wait for click only if seed is not auto and coords have not been given by command.
                 if (seedAuto){  // Autoseed overwrites present values of 'seed'
-                    getDepthSeed(imgDispInMat,seed);
+                    if(!getDepthSeed(imgDispInMat,seed)){
+                        portPointsOut.unprepare();
+                        portDispOut.write();
+                        return true;
+                    }
                 }else if ((seed.x<0) && (seed.y<0))
                 {
-                    readSeed();
+                    cout << " click for a seed" << endl;
+                    portPointsOut.unprepare();
+                    portDispOut.write();
+                    return true;
+                    //readSeed();
                 }
                 // If none of the conditions apply, means seed was either given by command or clicked before.
 
@@ -248,6 +262,7 @@ public:
                 cmdSFM.addInt(seed.x);
                 cmdSFM.addInt(seed.y);
                 cmdSFM.addDouble(spatial_distance);
+                cout << " command Flood3D sent to SFM" << endl;
                 if (portSFM.write(cmdSFM,replySFM))
                 {
                     for (int i=0; i<replySFM.size(); i+=5)
@@ -283,7 +298,11 @@ public:
                 // Get or read seed
                 if ((seed.x<0) && (seed.y<0))
                 {
-                    readSeed();
+                    cout << " click for a seed" << endl;
+                    portPointsOut.unprepare();
+                    portDispOut.write();
+                    return true;
+                    //readSeed();
                 }
 
                 cout << "Extracting 3D points from 2D color flood blob"<<endl;
@@ -312,7 +331,11 @@ public:
                 // Get or read seed
                 if ((seed.x<0) && (seed.y<0))
                 {
-                    readSeed();
+                    cout << " click for a seed" << endl;
+                    portPointsOut.unprepare();
+                    portDispOut.write();
+                    return true;
+                    //readSeed();
                 }
 
                 cout << "Extracting 3D points from segmented blob "<<endl;
@@ -395,6 +418,7 @@ public:
         portSeedIn.read(click);
         cv::Point coords(click.get(0).asInt(),click.get(1).asInt());
         seed = coords;
+        cout<< " Coordinates read " << seed.x << ", " << seed.y << endl;
         return;
     }
 
@@ -523,7 +547,8 @@ public:
     {
         cout << "Finding seed automatically" << endl;
         cv::Mat depth = disparity.clone();
-        cv::cvtColor(depth, depth, CV_BGR2GRAY);
+        //cout << " depth has " << depth.channels() << " channels" << endl;
+        //cv::cvtColor(depth, depth, CV_BGR2GRAY);
 
 
         /* Filter */
@@ -623,22 +648,25 @@ public:
 
             seed.x = seedAux.x;
             seed.y = seedAux.y;
+
+            cout << "Seed found at " << seed.x << " ," << seed.y << endl;
+
+            return true;
+        }else{
+            cout << "Seed could not be determined " << endl;
+            return false;
         }
-
-        cout << "Seed found at " << seed.x << " ," << seed.y << endl;
-
-        return true;
     }
 
 
     /*******************************************************************************/
     void clearRec()
     {
-        LockGuard lg(mutex);
+        //LockGuard lg(mutex);
         contour.clear();
         floodPoints.clear();
         rect = cv::Rect(1,1,0,0);
-        polygon=flood3d=flood=seg=false;
+        //polygon=flood3d=flood=seg=false;
 
         return;
     }
