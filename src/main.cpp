@@ -41,6 +41,7 @@ class Obj3DrecModule : public RFModule, public PortReader
 protected:
     vector<cv::Point> contour;
     vector<cv::Point> floodPoints;
+    cv::Point seed;
     cv::Rect rect;
 
     string homeContextPath;
@@ -52,8 +53,9 @@ protected:
     double spatial_distance;
     int color_distance;
     Mutex mutex;    
-    bool go,flood3d,flood,seg;
+    bool polygon,flood3d,flood,seg;
     bool seedAuto;
+    bool saving;
 
     BufferedPort<ImageOf<PixelMono> > portDispIn;
     BufferedPort<ImageOf<PixelRgb> > portDispOut;
@@ -76,6 +78,7 @@ protected:
             LockGuard lg(mutex);
             cv::Point point(data.get(0).asInt(),data.get(1).asInt());
             contour.push_back(point);
+            seed = point;
         }
 
         return true;
@@ -89,7 +92,10 @@ public:
 
         homeContextPath=rf.getHomeContextPath().c_str();
         savename = rf.check("savename", Value("cloud3D"), "Default file savename").asString();
+        saving = rf.check("savingClouds", Value(false), "Toggle save clouds as file").asBool();
         fileFormat = rf.check("format", Value("off"), "Default file format").asString();
+        seedAuto = rf.check("seedAuto", Value(true), "Automatic seed copmutation").asBool();
+
 
         cout << "Files will be saved in "<< homeContextPath << " folder, as " << savename <<"N." << fileFormat <<", with increasing numeration N"  << endl;
         fileCount = 0;
@@ -124,11 +130,13 @@ public:
         portSeedIn.setReader(*this);
         attach(portRpc);
 
-        go=flood3d=flood=seg=false;
+        polygon=flood3d=flood=seg=false;
 
         seedAuto = true;
 
-        rect =cv::Rect(1, 1, 0,0);
+        seed.x = -1; seed.y = -1;       // Negativ values mean undefined seed
+
+        rect = cv::Rect(1, 1, 0,0);
 
         return true;
     }
@@ -164,7 +172,7 @@ public:
     /*******************************************************************************/
     double getPeriod()
     {
-        return 1.0;
+        return 0.5;
     }
 
     /*******************************************************************************/
@@ -188,230 +196,271 @@ public:
         cv::Mat imgDispOutMat=cv::cvarrToMat((IplImage*)imgDispOut.getIplImage());
         cv::cvtColor(imgDispInMat,imgDispOutMat,CV_GRAY2RGB);
 
-        PixelRgb color(255,255,0);
-        for (size_t i=0; i<floodPoints.size(); i++)
-            imgDispOut.pixel(floodPoints[i].x,floodPoints[i].y)=color;
+        vector<vector<cv::Point> > contours;
+        contours.push_back(contour);
+        cv::drawContours(imgDispOutMat,contours,0,cv::Scalar(255,255,0));
+        cv::rectangle(imgDispOutMat,rect,cv::Scalar(255,50,0));
 
-        if (contour.size()>0)
-        {
-            vector<vector<cv::Point> > contours;
-            contours.push_back(contour);            
-            cv::drawContours(imgDispOutMat,contours,0,cv::Scalar(255,255,0));
-
-            //cv::Rect rect=cv::boundingRect(contour);
-            cv::rectangle(imgDispOutMat,rect,cv::Scalar(255,50,0));            
-
-            cv::Point2i seed;
-            if (seedAuto){
-                getDepthSeed(imgDispInMat,seed);
-            }else{
-                seed.x = contour.back().x;
-                seed.y = contour.back().y;
-            }
-
+        if ((seed.x>0) && (seed.y>0)){
             cv::circle(imgDispOutMat,seed, 3,cv::Scalar(0,0,255), 2);
+        }
 
+        if (polygon||flood3d||flood||seg){
 
+            // Create variables to store points in any case
+            Bottle &bpoints=portPointsOut.prepare();
+            vector<Vector> points;
 
-            if (go||flood3d||flood||seg)
-            {
-                Bottle &bpoints=portPointsOut.prepare();
-
-                vector<Vector> points;                
-
-                if (go)
+            if (polygon){
+                if (contour.size()>0)
                 {
                     cout << "3D points from selected contour "<<endl;
 
                     pointsFromContour(imgIn, contour, rect, points, bpoints);
 
                     cout << "Retrieved " << points.size() << " 3D points"  <<endl;
+
+                    contour.clear();
+
+                }else{
+                    cout << "Please select a polygon on the image before calling 'polygon' " << endl;
                 }
-                else if (flood3d)
+
+
+            } else if (flood3d)
+            {
+                // Wait for click only if seed is not auto and coords have not been given by command.
+                if (seedAuto){  // Autoseed overwrites present values of 'seed'
+                    getDepthSeed(imgDispInMat,seed);
+                }else if ((seed.x<0) && (seed.y<0))
                 {
-                    cout << "3D points flood3D "<<endl;
-                    Bottle cmdSFM,replySFM;
-                    cmdSFM.addString("Flood3D");
-                    cmdSFM.addInt(seed.x);
-                    cmdSFM.addInt(seed.y);
-                    cmdSFM.addDouble(spatial_distance);
-                    if (portSFM.write(cmdSFM,replySFM))
+                    readSeed();
+                }
+                // If none of the conditions apply, means seed was either given by command or clicked before.
+
+
+
+                cout << "3D points flood3D "<<endl;
+
+                // Use the seed point to get points from SFM with the Flood3D command, and spatial_distance given
+                Bottle cmdSFM,replySFM;
+                cmdSFM.addString("Flood3D");
+                cmdSFM.addInt(seed.x);
+                cmdSFM.addInt(seed.y);
+                cmdSFM.addDouble(spatial_distance);
+                if (portSFM.write(cmdSFM,replySFM))
+                {
+                    for (int i=0; i<replySFM.size(); i+=5)
                     {
-                        for (int i=0; i<replySFM.size(); i+=5)
-                        {                            
-                            int x=replySFM.get(i+0).asInt();
-                            int y=replySFM.get(i+1).asInt();
-                            PixelRgb px=imgIn->pixel(x,y);
+                        int x=replySFM.get(i+0).asInt();
+                        int y=replySFM.get(i+1).asInt();
+                        PixelRgb px=imgIn->pixel(x,y);
 
-                            Vector point(6,0.0);
-                            point[0]=replySFM.get(i+2).asDouble();
-                            point[1]=replySFM.get(i+3).asDouble();
-                            point[2]=replySFM.get(i+4).asDouble();
-                            point[3]=px.r;
-                            point[4]=px.g;
-                            point[5]=px.b;
+                        Vector point(6,0.0);
+                        point[0]=replySFM.get(i+2).asDouble();
+                        point[1]=replySFM.get(i+3).asDouble();
+                        point[2]=replySFM.get(i+4).asDouble();
+                        point[3]=px.r;
+                        point[4]=px.g;
+                        point[5]=px.b;
 
-                            points.push_back(point);
-                            floodPoints.push_back(cv::Point(x,y));
-                            
-                            Bottle &bpoint = bpoints.addList();
-                            bpoint.addDouble(point[0]);
-                            bpoint.addDouble(point[1]);
-                            bpoint.addDouble(point[2]);
-                        }
+                        points.push_back(point);
+                        floodPoints.push_back(cv::Point(x,y));
+
+                        Bottle &bpoint = bpoints.addList();
+                        bpoint.addDouble(point[0]);
+                        bpoint.addDouble(point[1]);
+                        bpoint.addDouble(point[2]);
+                    }
+                }
+
+                cout << "Retrieved " << points.size() << " 3D points"  <<endl;
+            }
+
+
+            else if (flood)
+            {
+                // Get or read seed
+                if ((seed.x<0) && (seed.y<0))
+                {
+                    readSeed();
+                }
+
+                cout << "Extracting 3D points from 2D color flood blob"<<endl;
+                // Set flooding parameters
+                //PixelMono c = imgDispIn->pixel(seed.x,seed.y);
+                cv::Scalar delta(color_distance);
+
+                // flood region and copy flood onto mask
+                cv::Mat mask = cv::Mat::zeros(imgInMat.rows + 2, imgInMat.cols + 2, CV_8U);
+                cv::floodFill(imgDispInMat, mask, seed, cv::Scalar(255), NULL, delta, delta,  4 + (255 << 8) | cv::FLOODFILL_FIXED_RANGE| cv::FLOODFILL_MASK_ONLY);
+
+                // Get the contours of the color flooded region from mask.
+                vector<vector<cv::Point> > contoursFlood;
+                vector<cv::Vec4i> hierarchy;
+                cv::findContours(mask, contoursFlood, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
+                vector<cv::Point> contourFlood = contoursFlood[0];
+
+                // Get the 3D points from the 2D points within the contour.
+                pointsFromContour(imgIn, contourFlood, rect, points, bpoints);
+
+                cout << "Retrieved " << points.size() << " 3D points"  <<endl;
+            }
+
+            else if (seg)
+            {
+                // Get or read seed
+                if ((seed.x<0) && (seed.y<0))
+                {
+                    readSeed();
+                }
+
+                cout << "Extracting 3D points from segmented blob "<<endl;
+
+                // Get segmented region from external segmentation module
+                Bottle cmdSeg, replySeg;
+                cmdSeg.addString("get_component_around");
+                cmdSeg.addInt(seed.x);
+                cmdSeg.addInt(seed.y);
+                if (portSeg.write(cmdSeg,replySeg))
+                {
+                    Bottle* pixelList=replySeg.get(0).asList();
+
+                    if (pixelList->size()==0)
+                    {
+                        cout << "Empty bottle received" <<endl;
+                        seg=false;
+                        points.clear();
+                        bpoints.clear();
+                        portPointsOut.write(); // Return empty bottle if no data was received.
+                        return true;
+                    }
+                    cout << "Read " << pixelList->size() << " points from segmentation algorithm" <<endl;
+                    cv::Mat binImg = cv::Mat(imgDispInMat.rows, imgDispInMat.cols, CV_8U, 0.0);
+                    for (int i=0; i<pixelList->size(); i++)
+                    {
+                        Bottle* point=pixelList->get(i).asList();
+                        int x = point->get(0).asDouble();
+                        int y = point->get(1).asDouble();
+                        binImg.at<uchar>(y,x) = 255;
                     }
 
-                    cout << "Retrieved " << points.size() << " 3D points"  <<endl;
-                }
-
-                else if (flood)
-                {                    
-                    cout << "3D points from 2D color flood "<<endl;
-
-                    // Set flooding parameters
-                    //PixelMono c = imgDispIn->pixel(seed.x,seed.y);
-                    cv::Scalar delta(color_distance);
-
-                    // flood region and copy flood onto mask
-                    cv::Mat mask = cv::Mat::zeros(imgInMat.rows + 2, imgInMat.cols + 2, CV_8U);
-                    cv::floodFill(imgDispInMat, mask, seed, cv::Scalar(255), NULL, delta, delta,  4 + (255 << 8) | cv::FLOODFILL_FIXED_RANGE| cv::FLOODFILL_MASK_ONLY);
-
-                    // Get the contours of the color flooded region from mask.
-                    vector<vector<cv::Point> > contoursFlood;
+                    // Get the contours of the segmented region.
+                    vector<vector<cv::Point> > contoursSeg;
                     vector<cv::Vec4i> hierarchy;
-                    cv::findContours(mask, contoursFlood, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
-                    vector<cv::Point> contourFlood = contoursFlood[0];
+                    cv::findContours(binImg, contoursSeg, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
+                    vector<cv::Point> contourSeg = contoursSeg[0];
+                    //cout << "Contours extracted."  <<endl;
 
                     // Get the 3D points from the 2D points within the contour.
-                    pointsFromContour(imgIn, contourFlood, rect, points, bpoints);
+                    pointsFromContour(imgIn, contourSeg, rect, points, bpoints);
 
                     cout << "Retrieved " << points.size() << " 3D points"  <<endl;
-
-                }else if (seg)
-                {
-                    cout << "Extracting 3D points from segmented blob "<<endl;
-
-                    // Get segmented region from external segmentation module
-                    Bottle cmdSeg, replySeg;
-                    cmdSeg.addString("get_component_around");
-                    cmdSeg.addInt(seed.x);
-                    cmdSeg.addInt(seed.y);
-                    if (portSeg.write(cmdSeg,replySeg))
-                    {
-                        Bottle* pixelList=replySeg.get(0).asList();
-
-                        if (pixelList->size()==0)
-                        {
-                            cout << "Empty bottle received" <<endl;
-                            seg=false;
-                            points.clear();
-                            bpoints.clear();
-                            portPointsOut.write(); // Return empty bottle if no data was received.
-                            return true;
-                        }
-                        cout << "Read " << pixelList->size() << " points from segmentation algorithm" <<endl;
-                        cv::Mat binImg = cv::Mat(imgDispInMat.rows, imgDispInMat.cols, CV_8U, 0.0);
-                        for (int i=0; i<pixelList->size(); i++)
-                        {
-                            Bottle* point=pixelList->get(i).asList();
-                            int x = point->get(0).asDouble();
-                            int y = point->get(1).asDouble();
-                            binImg.at<uchar>(y,x) = 255;
-                        }
-
-                        // Get the contours of the segmented region.
-                        vector<vector<cv::Point> > contoursSeg;
-                        vector<cv::Vec4i> hierarchy;
-                        cv::findContours(binImg, contoursSeg, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
-                        vector<cv::Point> contourSeg = contoursSeg[0];
-                        //cout << "Contours extracted."  <<endl;
-
-                        // Get the 3D points from the 2D points within the contour.
-                        pointsFromContour(imgIn, contourSeg, rect, points, bpoints);
-
-                        cout << "Retrieved " << points.size() << " 3D points"  <<endl;
-                    }
                 }
-
-                //--------------------------------------------------------------------------------------------------------------------------//
-                // Save points in the desired format
-                if (points.size()>0)
-                {
-                    ofstream fout;
-                    stringstream fileName;
-                    string fileNameFormat;
-                    fileName.str("");
-                    fileName << homeContextPath + "/" + savename.c_str() << fileCount;
-
-                    if (fileFormat == "ply")
-                    {
-                        fileNameFormat = fileName.str()+".ply";
-                        cout << "Saving as " << fileNameFormat << endl;
-                        fout.open(fileNameFormat.c_str());
-                        if (fout.is_open())
-                        {
-                            fout << "ply\n";
-                            fout << "format ascii 1.0\n";
-                            fout << "element vertex " << points.size() <<"\n";
-                            fout << "property float x\n";
-                            fout << "property float y\n";
-                            fout << "property float z\n";
-                            fout << "property uchar diffuse_red\n";
-                            fout << "property uchar diffuse_green\n";
-                            fout << "property uchar diffuse_blue\n";
-                            fout << "end_header\n";
-
-                            for (unsigned int i=0; i<points.size(); i++){
-                                fout << points[i][0] << " " <<      points[i][1] << " " <<      points[i][2] << " " << (int)points[i][3] << " " << (int)points[i][4] << " " << (int)points[i][5] << "\n";
-                                //plyfile << cloud->at(i).x << " " << cloud->at(i).y << " " << cloud->at(i).z << " " << (int)cloud->at(i).r << " " << (int)cloud->at(i).g << " " << (int)cloud->at(i).b << "\n";
-                            }
-
-                            fout.close();
-                            cout << "Points saved as " << fileNameFormat << endl;
-                            fileCount++;
-                        }
-                    }else if (fileFormat == "off"){
-                        fileNameFormat = fileName.str()+".off";
-                        cout << "Saving as " << fileNameFormat << endl;
-                        fout.open(fileNameFormat.c_str());
-                        if (fout.is_open())
-                        {
-
-                            fout<<"COFF"<<endl;
-                            fout<<points.size()<<" 0 0"<<endl;
-                            fout<<endl;
-                            for (size_t i=0; i<points.size(); i++)
-                            {
-                                fout<<points[i].subVector(0,2).toString(3,4).c_str()<<" "<<
-                                      points[i].subVector(3,5).toString(0,3).c_str()<<endl;
-                            }
-                            fout<<endl;
-                        }
-
-                        fout.close();
-                        cout << "Points saved as " << fileNameFormat << endl;
-                        fileCount++;
-
-                    }else if (fileFormat == "none"){
-                        cout << "Points not saved" << endl;
-                    }
-
-                    //--------------------------------------------------------------------------------------------------------------------------//
-                    //send the 3D point to portPointsOut, as lists
-                    portPointsOut.write();
-
-                }else
-                {
-                    portPointsOut.unprepare();
-                }
-                go=flood=flood3d=seg=false;
-                points.clear();
-                bpoints.clear();
             }
+
+            //------------------------//
+            // Send and/or  save points
+            if (points.size()>0)
+            {
+                if (saving){
+                    saveCloud(points);
+                }
+                portPointsOut.write();
+
+            }else {
+                portPointsOut.unprepare();
+            }
+
+            seed.x = -1; seed.y = -1; // Reset seed after each rec call
+            polygon=flood=flood3d=seg=false;
+            points.clear();
+            bpoints.clear();
         }
+
+        PixelRgb color(255,255,0);
+        for (size_t i=0; i<floodPoints.size(); i++)
+            imgDispOut.pixel(floodPoints[i].x,floodPoints[i].y)=color;
 
         portDispOut.write();
         return true;
+    }
+
+
+    /*******************************************************************************/
+    void readSeed()
+    {
+        cout << "Please click on the image for a seed point" << endl;
+        Bottle click;
+        portSeedIn.read(click);
+        cv::Point coords(click.get(0).asInt(),click.get(1).asInt());
+        seed = coords;
+        return;
+    }
+
+
+    /*******************************************************************************/
+    bool saveCloud(const vector<Vector> &points)
+    {
+        ofstream fout;
+        stringstream fileName;
+        string fileNameFormat;
+        fileName.str("");
+        fileName << homeContextPath + "/" + savename.c_str() << fileCount;
+
+        if (fileFormat == "ply")
+        {
+            fileNameFormat = fileName.str()+".ply";
+            cout << "Saving as " << fileNameFormat << endl;
+            fout.open(fileNameFormat.c_str());
+            if (fout.is_open())
+            {
+                fout << "ply\n";
+                fout << "format ascii 1.0\n";
+                fout << "element vertex " << points.size() <<"\n";
+                fout << "property float x\n";
+                fout << "property float y\n";
+                fout << "property float z\n";
+                fout << "property uchar diffuse_red\n";
+                fout << "property uchar diffuse_green\n";
+                fout << "property uchar diffuse_blue\n";
+                fout << "end_header\n";
+
+                for (unsigned int i=0; i<points.size(); i++){
+                    fout << points[i][0] << " " <<      points[i][1] << " " <<      points[i][2] << " " << (int)points[i][3] << " " << (int)points[i][4] << " " << (int)points[i][5] << "\n";
+                    //plyfile << cloud->at(i).x << " " << cloud->at(i).y << " " << cloud->at(i).z << " " << (int)cloud->at(i).r << " " << (int)cloud->at(i).g << " " << (int)cloud->at(i).b << "\n";
+                }
+
+                fout.close();
+                cout << "Points saved as " << fileNameFormat << endl;
+                fileCount++;
+            }
+
+        }else if (fileFormat == "off"){
+            fileNameFormat = fileName.str()+".off";
+            cout << "Saving as " << fileNameFormat << endl;
+            fout.open(fileNameFormat.c_str());
+            if (fout.is_open())
+            {
+
+                fout<<"COFF"<<endl;
+                fout<<points.size()<<" 0 0"<<endl;
+                fout<<endl;
+                for (size_t i=0; i<points.size(); i++)
+                {
+                    fout<<points[i].subVector(0,2).toString(3,4).c_str()<<" "<<
+                          points[i].subVector(3,5).toString(0,3).c_str()<<endl;
+                }
+                fout<<endl;
+            }
+
+            fout.close();
+            cout << "Points saved as " << fileNameFormat << endl;
+            fileCount++;
+
+        }else if (fileFormat == "none"){
+            cout << "Points not saved" << endl;
+        }
     }
 
 
@@ -469,6 +518,7 @@ public:
 
 
 
+    /*******************************************************************************/
     bool getDepthSeed(const cv::Mat &disparity,cv::Point2i &seed)
     {
         cout << "Finding seed automatically" << endl;
@@ -581,6 +631,17 @@ public:
     }
 
 
+    /*******************************************************************************/
+    void clearRec()
+    {
+        LockGuard lg(mutex);
+        contour.clear();
+        floodPoints.clear();
+        rect = cv::Rect(1,1,0,0);
+        polygon=flood3d=flood=seg=false;
+
+        return;
+    }
 
 
     /*******************************************************************************/
@@ -591,22 +652,27 @@ public:
         int nack=Vocab::encode("nack");
 
         if (cmd=="clear")
-        {   //XXX make clear in a function so that it can be called from the other routines, and clean the yarpviews when any order is called.
-            LockGuard lg(mutex);
-            contour.clear();
-            floodPoints.clear();
-            rect = cv::Rect(1,1,0,0);            
-            go=flood3d=flood=seg=false;
+        {
+            clearRec();
             reply.addVocab(ack);
             return true;
         }
 
         else if (cmd=="seedAuto"){
             seedAuto = command.get(1).asBool();
-
+            cout << "Automatic seeding is " << seedAuto << endl;
             reply.addVocab(ack);
             return true;
         }
+
+        else if (cmd=="saving"){
+            saving = command.get(1).asBool();
+            cout << "Saving clouds as files is " << saving << endl;
+            reply.addVocab(ack);
+            return true;
+        }
+
+
         else if (cmd=="testAuto"){
 
             cout << " Testing autoseeder" << endl;
@@ -624,6 +690,30 @@ public:
             return true;
         }
 
+        else if (cmd=="setFormat")
+        {
+            if (command.size()>=2){
+                string format = command.get(1).asString();
+                if ((format=="ply")||(format=="off")||(format=="none")){
+                    fileFormat = format;
+                    reply.addVocab(ack);
+                    reply.addString("Format set correctly");
+                } else {
+                    reply.addVocab(nack);
+                    reply.addString("No valid format chosen. Choose ply/off/none");
+                }
+            }
+        }
+
+        else if (cmd=="setFileName")
+        {
+            if (command.size()>=2){
+                savename = command.get(1).asString();
+                reply.addVocab(ack);
+                reply.addString("File Name set correctly");
+            }
+        }
+
         else if (cmd=="help")
         {
             reply.addVocab(Vocab::encode("many"));
@@ -631,8 +721,9 @@ public:
             reply.addString("help - produces this help");
             reply.addString("clear - Clears displays and saved points");
             reply.addString("seedAuto (bool) - Toggles from manual (click) seed to 'automatic' one for flood3d");
+            reply.addString("saving (bool) - (de) activates saving each reconstructed cloud in file");
             reply.addString("testAuto - Runs the test for automatic seed detection");
-            reply.addString("go - gets pointcloud from the selected polygon on the disp image");
+            reply.addString("polygon - gets pointcloud from the selected polygon on the disp image");
             reply.addString("flood int(color_distance) int int (coords(opt))- gets pointcloud from 2D color flood. User has to select the seed pixel from the disp image");
             reply.addString("flood3d double(spatial_distance) int int (coords(opt))- gets pointcloud from 3D color flood (based on depth). User has to select the seed pixel from the disp image");
             reply.addString("seg int int (coords(opt))- gets pointcloud from an externally segmented blob. User has to select the seed pixel from the disp image");
@@ -640,18 +731,19 @@ public:
             reply.addString("setFileName string(filename)- sets the base name given to the files where the 3D points will be saved. ");
             return true;
         }
-        else if ((cmd=="go") || (cmd=="flood3d")|| (cmd=="flood")|| (cmd=="seg"))
+
+        else if ((cmd=="polygon") || (cmd=="flood3d")|| (cmd=="flood")|| (cmd=="seg"))
         {
             if (portSFM.getOutputCount()==0)
                 reply.addVocab(nack);
             else
             {
                 LockGuard lg(mutex);
-                if (cmd=="go")
+                if (cmd=="polygon")
                 {
                     if (contour.size()>2)
                     {
-                        go=true;
+                        polygon=true;
                         reply.addVocab(ack);
                     }
                     else
@@ -668,12 +760,10 @@ public:
                     }
 
                     if (command.size()>=4){
-                        cv::Point coords2D;
-                        coords2D.x=command.get(2).asInt();
-                        coords2D.y=command.get(3).asInt();
-                        contour.push_back(coords2D);
-                        reply.addInt(coords2D.x);
-                        reply.addInt(coords2D.y);
+                        seed.x=command.get(2).asInt();
+                        seed.y=command.get(3).asInt();
+                        reply.addInt(seed.x);
+                        reply.addInt(seed.y);
                     }
                     flood3d=true;
 
@@ -689,15 +779,11 @@ public:
                     }
 
                     if (command.size()>=4){
-                        cv::Point coords2D;
-                        coords2D.x=command.get(2).asInt();
-                        coords2D.y=command.get(3).asInt();
-                        contour.push_back(coords2D);
-                        reply.addInt(coords2D.x);
-                        reply.addInt(coords2D.y);
+                        seed.x=command.get(2).asInt();
+                        seed.y=command.get(3).asInt();
+                        reply.addInt(seed.x);
+                        reply.addInt(seed.y);
                     }
-
-
                     flood=true;
 
                 }
@@ -706,40 +792,18 @@ public:
                     contour.clear();
                     reply.addVocab(ack);
                     if (command.size()>=3){
-                        cv::Point coords2D;
-                        coords2D.x=command.get(1).asInt();
-                        coords2D.y=command.get(2).asInt();
-                        contour.push_back(coords2D);    
-                        reply.addInt(coords2D.x);
-                        reply.addInt(coords2D.y);
+                        seed.x=command.get(1).asInt();
+                        seed.y=command.get(2).asInt();
+                        reply.addInt(seed.x);
+                        reply.addInt(seed.y);
                     }                   
                     seg=true;
                     
                 }
             }
         }
-        else if (cmd=="setFormat")
-        {
-            if (command.size()>=2){
-                string format = command.get(1).asString();
-                if ((format=="ply")||(format=="off")||(format=="none")){
-                    fileFormat = format;
-                    reply.addVocab(ack);
-                    reply.addString("Format set correctly");
-                } else {
-                    reply.addVocab(nack);
-                    reply.addString("No valid format chosen. Choose ply/off/none");
-                }
-            }
-        }
-        else if (cmd=="setFileName")
-        {
-            if (command.size()>=2){
-                savename = command.get(1).asString();
-                reply.addVocab(ack);
-                reply.addString("File Name set correctly");
-            }
-        }
+
+
         else 
             RFModule::respond(command,reply);
         

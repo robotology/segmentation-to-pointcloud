@@ -72,7 +72,7 @@
         <output>
             <type>Bottle</type>
             <port carrier="udp">/obj3Drec/pnt:o</port>
-            <description>Sends out the reconstructed 3D objectas a bottle of points, where each point is itself a list of 3 values x, y, z. </description>
+            <description>Sends out the reconstructed 3D object as a bottle of points, where each point is itself a list of 3 values x, y, z, and optionally other 3 r, g, b. </description>
         </output> 
         <output>
             <type>ImageOfPixelRgb</type>
