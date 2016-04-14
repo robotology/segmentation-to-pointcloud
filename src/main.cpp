@@ -235,14 +235,18 @@ public:
             {
                  cout << "Getting seed "<<endl;
 
-                // Wait for click only if seed is not auto and coords have not been given by command.
-                if (seedAuto){  // Autoseed overwrites present values of 'seed'
+
+                /*
+                  if (seedAuto){  // Autoseed overwrites present values of 'seed'
                     if(!getDepthSeed(imgDispInMat,seed)){
                         portPointsOut.unprepare();
                         portDispOut.write();
                         return true;
                     }
-                }else if ((seed.x<0) && (seed.y<0))
+                }else
+                */
+                // Wait for click only if seed is not auto and coords have not been given by command or on a previous click.
+                if ((seed.x<0) && (seed.y<0))
                 {
                     cout << " click for a seed" << endl;
                     portPointsOut.unprepare();
@@ -543,7 +547,20 @@ public:
 
 
     /*******************************************************************************/
-    bool getDepthSeed(const cv::Mat &disparity,cv::Point2i &seed)
+
+    bool getDepthSeed(cv::Point2i &seedPoint)
+    {
+        ImageOf<PixelMono> *imgDispIn=portDispIn.read();
+        if (imgDispIn==NULL)
+            return false;
+
+        cv::Mat imgDispInMat=cv::cvarrToMat((IplImage*)imgDispIn->getIplImage());
+
+        return getDepthSeed(imgDispInMat,seedPoint);
+    }
+
+
+    bool getDepthSeed(const cv::Mat &disparity,cv::Point2i &seedPoint)
     {
         cout << "Finding seed automatically" << endl;
         cv::Mat depth = disparity.clone();
@@ -646,10 +663,10 @@ public:
                 seedValid = pointPolygonTest(contours[blobI], seedAux, false );
             }
 
-            seed.x = seedAux.x;
-            seed.y = seedAux.y;
+            seedPoint.x = seedAux.x;
+            seedPoint.y = seedAux.y;
 
-            cout << "Seed found at " << seed.x << " ," << seed.y << endl;
+            cout << "Seed found at " << seedPoint.x << " ," << seedPoint.y << endl;
 
             return true;
         }else{
@@ -779,20 +796,34 @@ public:
                 }
                 else if (cmd=="flood3d")
                 {
-                    reply.addVocab(ack);
+
                     contour.clear();
                     floodPoints.clear();
                     if (command.size()>=2){
-                        spatial_distance=command.get(1).asDouble();
-                        reply.addInt(spatial_distance);
+                        spatial_distance=command.get(1).asDouble();                        
                     }
 
-                    if (command.size()>=4){
+
+                    if (seedAuto) // Autoseed overwrites present values of 'seed'
+                    {
+                        if(!getDepthSeed(seed))
+                        {
+                            cout << "couldnt retrieve autoseed "<< endl;
+                        }
+
+                    }else if (command.size()>=4){
                         seed.x=command.get(2).asInt();
                         seed.y=command.get(3).asInt();
-                        reply.addInt(seed.x);
-                        reply.addInt(seed.y);
+
+                    }else if ((seed.x <0) && (seed.y<0)){
+                        cout << "seed needs to be clicked" << endl;
                     }
+
+
+                    reply.addVocab(ack);
+                    reply.addInt(seed.x);
+                    reply.addInt(seed.y);
+                    reply.addInt(spatial_distance);
                     flood3d=true;
 
                 }
