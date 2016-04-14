@@ -236,15 +236,13 @@ public:
                  cout << "Getting seed "<<endl;
 
 
-                /*
-                  if (seedAuto){  // Autoseed overwrites present values of 'seed'
+                if (seedAuto){  // Autoseed overwrites present values of 'seed'
                     if(!getDepthSeed(imgDispInMat,seed)){
                         portPointsOut.unprepare();
                         portDispOut.write();
                         return true;
                     }
                 }else
-                */
                 // Wait for click only if seed is not auto and coords have not been given by command or on a previous click.
                 if ((seed.x<0) && (seed.y<0))
                 {
@@ -252,7 +250,6 @@ public:
                     portPointsOut.unprepare();
                     portDispOut.write();
                     return true;
-                    //readSeed();
                 }
                 // If none of the conditions apply, means seed was either given by command or clicked before.
 
@@ -306,7 +303,6 @@ public:
                     portPointsOut.unprepare();
                     portDispOut.write();
                     return true;
-                    //readSeed();
                 }
 
                 cout << "Extracting 3D points from 2D color flood blob"<<endl;
@@ -339,7 +335,6 @@ public:
                     portPointsOut.unprepare();
                     portDispOut.write();
                     return true;
-                    //readSeed();
                 }
 
                 cout << "Extracting 3D points from segmented blob "<<endl;
@@ -411,19 +406,6 @@ public:
 
         portDispOut.write();
         return true;
-    }
-
-
-    /*******************************************************************************/
-    void readSeed()
-    {
-        cout << "Please click on the image for a seed point" << endl;
-        Bottle click;
-        portSeedIn.read(click);
-        cv::Point coords(click.get(0).asInt(),click.get(1).asInt());
-        seed = coords;
-        cout<< " Coordinates read " << seed.x << ", " << seed.y << endl;
-        return;
     }
 
 
@@ -649,8 +631,8 @@ public:
             seedAux.x = blobBox.tl().x;
             seedAux.y = blobBox.tl().y;
             while (seedValid < 0){              // Move diagonally through the image until a point inside the blob is found.
-                seedAux.x = seedAux.x + 2;
-                seedAux.y = seedAux.y + 2;
+                seedAux.x = seedAux.x + 4;
+                seedAux.y = seedAux.y + 1;
 
 
                 cv::circle(depth, seedAux, 1, cv::Scalar(0,0,0),2);
@@ -663,8 +645,8 @@ public:
                 seedValid = pointPolygonTest(contours[blobI], seedAux, false );
             }
 
-            seedPoint.x = seedAux.x;
-            seedPoint.y = seedAux.y;
+            seedPoint.x = seedAux.x+2;     // add a small margin to be fully inside the contour
+            seedPoint.y = seedAux.y+2;
 
             cout << "Seed found at " << seedPoint.x << " ," << seedPoint.y << endl;
 
