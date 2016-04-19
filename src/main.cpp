@@ -39,7 +39,7 @@ using namespace yarp::math;
 class Obj3DrecModule : public RFModule, public PortReader
 {
 protected:
-    vector<cv::Point> contour;
+    deque<cv::Point> contour;
     vector<cv::Point> floodPoints;
     cv::Point seed;
     cv::Rect rect;
@@ -62,7 +62,7 @@ protected:
     BufferedPort<ImageOf<PixelRgb> > portImgIn;
     BufferedPort<Bottle> portPointsOut;
     Port portSeedIn;
-    Port portContour;
+    //Port portContour;
     RpcClient portSFM;
     RpcClient portSeg;
     RpcServer portRpc;
@@ -78,6 +78,8 @@ protected:
             LockGuard lg(mutex);
             cv::Point point(data.get(0).asInt(),data.get(1).asInt());
             contour.push_back(point);
+            if (contour.size()>12)
+                contour.pop_front();
             seed = point;
         }
 
@@ -94,7 +96,7 @@ public:
         savename = rf.check("savename", Value("cloud3D"), "Default file savename").asString();
         saving = rf.check("savingClouds", Value(false), "Toggle save clouds as file").asBool();
         fileFormat = rf.check("format", Value("off"), "Default file format").asString();
-        seedAuto = rf.check("seedAuto", Value(true), "Automatic seed copmutation").asBool();
+        seedAuto = rf.check("seedAuto", Value(true), "Automatic seed computation").asBool();
 
 
         cout << "Files will be saved in "<< homeContextPath << " folder, as " << savename <<"N." << fileFormat <<", with increasing numeration N"  << endl;
@@ -110,7 +112,7 @@ public:
         ret = ret && portDispIn.open("/"+name+"/disp:i");
         ret = ret && portImgIn.open("/"+name+"/img:i");
         ret = ret && portSeedIn.open("/"+name+"/seed:i");
-        ret = ret && portContour.open("/"+name+"/contour:i");
+        //ret = ret && portContour.open("/"+name+"/contour:i");
 
         ret = ret && portPointsOut.open("/"+name+"/pnt:o");
         ret = ret && portDispOut.open("/"+name+"/disp:o");
@@ -126,7 +128,7 @@ public:
         printf("Ports opened\n");
 
 
-        portContour.setReader(*this);
+        //portContour.setReader(*this);
         portSeedIn.setReader(*this);
         attach(portRpc);
 
@@ -147,7 +149,7 @@ public:
         portDispIn.interrupt();
         portDispOut.interrupt();
         portImgIn.interrupt();
-        portContour.interrupt();
+        //portContour.interrupt();
         portPointsOut.interrupt();
         portSFM.interrupt();
         portSeg.interrupt();
@@ -161,7 +163,7 @@ public:
         portDispIn.close();
         portDispOut.close();
         portImgIn.close();
-        portContour.close();
+        //portContour.close();
         portPointsOut.close();
         portSFM.close();
         portSeg.close();
@@ -328,7 +330,15 @@ public:
 
             else if (seg)
             {
-                // Get or read seed
+                /*
+                if (seedAuto){  // Autoseed overwrites present values of 'seed'
+                    if(!getTrackSeed(seed)){
+                        portPointsOut.unprepare();
+                        portDispOut.write();
+                        return true;
+                    }
+                }else   */
+                // Wait for click only if seed is not auto and coords have not been given by command or on a previous click.
                 if ((seed.x<0) && (seed.y<0))
                 {
                     cout << " click for a seed" << endl;
@@ -336,6 +346,7 @@ public:
                     portDispOut.write();
                     return true;
                 }
+                // If none of the conditions apply, means seed was either given by command or clicked before.
 
                 cout << "Extracting 3D points from segmented blob "<<endl;
 
@@ -475,7 +486,7 @@ public:
 
 
     /*******************************************************************************/
-    bool pointsFromContour(const ImageOf<PixelRgb> *imgIn, const vector<cv::Point> contourIn, cv::Rect &boundBox, vector<Vector> &pointsInContour, Bottle &bpoints)
+    bool pointsFromContour(const ImageOf<PixelRgb> *imgIn, const deque<cv::Point> contourIn, cv::Rect &boundBox, vector<Vector> &pointsInContour, Bottle &bpoints)
     {
         boundBox = cv::boundingRect(contourIn);
 
@@ -529,7 +540,6 @@ public:
 
 
     /*******************************************************************************/
-
     bool getDepthSeed(cv::Point2i &seedPoint)
     {
         ImageOf<PixelMono> *imgDispIn=portDispIn.read();
@@ -710,8 +720,8 @@ public:
             cout << "Read image of size " << image.rows << ", " << image.cols << endl;
 
             cout << " Getting seed from depth" << endl;
-            cv::Point2i seed;
-            getDepthSeed(image,seed);
+            //cv::Point2i seed;
+            //getDepthSeed(image,seed);
 
             reply.addVocab(ack);
             return true;
@@ -747,15 +757,15 @@ public:
             reply.addString("Available commands are:");
             reply.addString("help - produces this help");
             reply.addString("clear - Clears displays and saved points");
-            reply.addString("seedAuto (bool) - Toggles from manual (click) seed to 'automatic' one for flood3d");
-            reply.addString("saving (bool) - (de) activates saving each reconstructed cloud in file");
+            reply.addString("setFormat string(fileformat)- Sets the format in which the points will be saved. 'fileformat' can be  'ply', 'off' or 'none'.");
+            reply.addString("setFileName string(filename)- Sets the base name given to the files where the 3D points will be saved. ");
+            reply.addString("saving (bool) - Activates/deactivated saving each reconstructed cloud in file.");
             reply.addString("testAuto - Runs the test for automatic seed detection");
-            reply.addString("polygon - gets pointcloud from the selected polygon on the disp image");
-            reply.addString("flood int(color_distance) int int (coords(opt))- gets pointcloud from 2D color flood. User has to select the seed pixel from the disp image");
-            reply.addString("flood3d double(spatial_distance) int int (coords(opt))- gets pointcloud from 3D color flood (based on depth). User has to select the seed pixel from the disp image");
-            reply.addString("seg int int (coords(opt))- gets pointcloud from an externally segmented blob. User has to select the seed pixel from the disp image");
-            reply.addString("setFormat string(fileformat)- sets the format in which the points will be saved. 'fileformat' can be  'ply', 'off' or 'none'.");
-            reply.addString("setFileName string(filename)- sets the base name given to the files where the 3D points will be saved. ");
+            reply.addString("polygon - Gets pointcloud from the selected polygon on the disp image");
+            reply.addString("flood int(color_distance) int int (coords(opt))- Gets pointcloud from 2D color flood using the parameter color_distance. Optionally coords can be given by command.");
+            reply.addString("flood3d double(spatial_distance) int int (coords(opt))- gets pointcloud from 3D color flood (based on depth with parameter spatial_distance). Optionally coords can be given by command.");
+            reply.addString("seg int int (coords(opt))- gets pointcloud from an externally segmented blob. Optionally coords can be given by command.");
+            reply.addString("seedAuto (bool) - Toggles from manual (click) seed to 'automatic' one for flood3d");
             return true;
         }
 

@@ -9,13 +9,19 @@
     <version>1.0</version>
     
     <description-long>
-    obj3Drec applies disparity information to retrieve 3D clouds of desired objects. The objects can be chosen from a user defined polygon, 
-    from a segmentation algorithm, or from 2D (in color) or 3D (in depth)  flood filling. 
+    obj3Drec applies disparity information to retrieve 3D clouds of desired objects. The objects can be chosen from a user defined polygon, from a segmentation algorithm, or from 2D (in color) or 3D (in depth) flood filling. When using other segmentatoin modules (2D or 3D), seeding can be performed automatically.
     </description-long>
 
     <!-- <arguments> can have multiple <param> tags-->
     <arguments>    
     <param desc="Name of the module" default="obj3Drec"> name</param>
+    <param desc="Default file savename" default="savename"> savename</param>
+    <param desc="Toggle save clouds as file" default="false"> savingClouds</param>
+    <param desc="Default file format" default="off"> format</param>
+    <param desc="Automatic seed computation" default="true"> seedAuto</param>
+    <param desc="Downsampling ratio pixel to pint for reconstruction" default="1"> downsampling</param>
+    <param desc="Blob distance threshold for 3D flood (m)" default="0.01"> spatial_distance</param>
+    <param desc="Blob distance threshold for 2D flood (RGB intensity)" default="6"> color_distance</param>
     </arguments>
 
     <!-- <authors> can have multiple <author> tags. -->
@@ -29,14 +35,17 @@
         <input port_type="service">
             <type>rpc</type>
             <port carrier="tcp">/obj3Drec/rpc:i</port>
-            <description> Takes the following RPC commands from Human or stateMachine
+            <description> Takes the following RPC commands
                 -# <b>help</b>:  produces this help.
-                -# <b>polygon</b>: gets pointcloud from the selected polygon on the disp image.
-                -# <b>flood int(color_distance) </b>: gets pointcloud from 2D color flood. User has to select the seed pixel from the disp image.
-                -# <b>flood3D double(spatial_distance) </b>: gets pointcloud from 3D color flood (based on depth). User has to select the seed pixel from the disp image.
-                -# <b>seg</b>: gets pointcloud from an externally segmented blob. User has to select the seed pixel from the segmented image.
-                -# <b>setFormat string(fileformat)</b>: sets the format in which the points will be saved. 'fileformat' can be  'ply', 'off' or 'none'.
-                -# <b>setFileName string(filename)</b>: sets the base name given to the files where the 3D points will be saved.
+                -# <b>clear</b>:  Clears displays and saved points.
+                -# <b>saving</b> <i>(bool) save </i>:  Activates/deactivated saving each reconstructed cloud in file.
+                -# <b>setFormat </b> <i>(string) fileformat</i>: Sets the format in which the points will be saved. 'fileformat' can be  'ply', 'off' or 'none'.
+                -# <b>setFileName </b> <i> (string) filename</i>: Sets the base name given to the files where the 3D points will be saved.
+                -# <b>polygon</b>: Gets pointcloud from the selected polygon on the disp image.
+                -# <b>flood</b>: <i> (int) color_distance [(int) u (int) v] </i>: Gets pointcloud from 2D color flood using the parameter color_distance. Seed (u, v) coords optional.
+                -# <b>flood3D </b> <i> (double) spatial_distance [u (int) v (int)]</b>: gets pointcloud from 3D color flood. Seed (u, v) coords optional.
+                -# <b>seg</b> <i> [(int) u (int) v] </i>: gets pointcloud from an externally segmented blob. Seed (u, v) coords optional.
+                -# <b>seedAuto</b> <i>(bool) auto </i>: Toggles from manual (click) seed to 'automatic' for segmentation modes.
             </description>
         </input>
         <input>
@@ -58,7 +67,7 @@
             <port carrier="udp">/obj3Drec/seed:i</port>
             <required>no</required>
             <priority>no</priority>
-            <description> Receives the seed coordinates of the segmented blob, selected by user</description>
+            <description> Receives the seed coordinates of the segmented blob, for auto segmentation</description>
         </input>
         <input>
             <type>Bottle</type>
@@ -94,6 +103,8 @@
     <dependencies>
         <computer>
             SFM module must be running. 
+	    For segmentation modes, a segmentation module accepting the correct rpc command must be connected.
+            For autoSeed mode in 2D a tracker (or tracking/segmentation) module must be running.
         </computer>
     </dependencies>
 
