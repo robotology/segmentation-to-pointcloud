@@ -265,9 +265,12 @@ public:
                 cmdSFM.addInt(seed.x);
                 cmdSFM.addInt(seed.y);
                 cmdSFM.addDouble(spatial_distance);
-                cout << " command Flood3D sent to SFM" << endl;
-                if (portSFM.write(cmdSFM,replySFM))
+                cout << " +++ RPC command to SFM: "  << cmdSFM.toString() << endl;
+                bool ok = portSFM.write(cmdSFM,replySFM);
+                cout << " +++ reply from SFM: "  << replySFM.toString() << endl;
+                if (ok)
                 {
+                    cout << "Bottle of size " << replySFM.size() << " received from SFM" << endl;
                     for (int i=0; i<replySFM.size(); i+=5)
                     {
                         int x=replySFM.get(i+0).asInt();
@@ -290,9 +293,13 @@ public:
                         bpoint.addDouble(point[1]);
                         bpoint.addDouble(point[2]);
                     }
+                    cout << "Retrieved " << points.size() << " 3D points"  <<endl;
+                }else{
+                    cout << " SFM didn't reply" << endl;
+                    return true;
                 }
 
-                cout << "Retrieved " << points.size() << " 3D points"  <<endl;
+
             }
 
 
@@ -389,6 +396,9 @@ public:
                     pointsFromContour(imgIn, contourSeg, rect, points, bpoints);
 
                     cout << "Retrieved " << points.size() << " 3D points"  <<endl;
+                }else{
+                    cout << "Segmentation module did not provide reply" << endl;
+                    return true;
                 }
             }
 
