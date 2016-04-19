@@ -69,14 +69,14 @@
             <priority>no</priority>
             <description> Receives the seed coordinates of the segmented blob, for auto segmentation</description>
         </input>
-        <input>
+        <!--<input>
             <type>Bottle</type>
             <port carrier="udp">/obj3Drec/contour:i</port>
             <required>no</required>
             <priority>no</priority>
             <description> Receives the polygon contour points selected by user</description>
         </input>
-        
+        -->
         <!-- output data if available -->
         <output>
             <type>Bottle</type>

@@ -39,7 +39,7 @@ using namespace yarp::math;
 class Obj3DrecModule : public RFModule, public PortReader
 {
 protected:
-    deque<cv::Point> contour;
+    vector<cv::Point> contour;
     vector<cv::Point> floodPoints;
     cv::Point seed;
     cv::Rect rect;
@@ -79,7 +79,7 @@ protected:
             cv::Point point(data.get(0).asInt(),data.get(1).asInt());
             contour.push_back(point);
             if (contour.size()>12)
-                contour.pop_front();
+                contour.pop_back();
             seed = point;
         }
 
@@ -486,7 +486,7 @@ public:
 
 
     /*******************************************************************************/
-    bool pointsFromContour(const ImageOf<PixelRgb> *imgIn, const deque<cv::Point> contourIn, cv::Rect &boundBox, vector<Vector> &pointsInContour, Bottle &bpoints)
+    bool pointsFromContour(const ImageOf<PixelRgb> *imgIn, const vector<cv::Point> contourIn, cv::Rect &boundBox, vector<Vector> &pointsInContour, Bottle &bpoints)
     {
         boundBox = cv::boundingRect(contourIn);
 
