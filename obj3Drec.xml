@@ -42,7 +42,7 @@
                 -# <b>setFormat </b> <i>(string) fileformat</i>: Sets the format in which the points will be saved. 'fileformat' can be  'ply', 'off' or 'none'.
                 -# <b>setFileName </b> <i> (string) filename</i>: Sets the base name given to the files where the 3D points will be saved.
                 -# <b>polygon</b>: Gets pointcloud from the selected polygon on the disp image.
-                -# <b>flood</b>: <i> (int) color_distance [(int) u (int) v] </i>: Gets pointcloud from 2D color flood using the parameter color_distance. Seed (u, v) coords optional.
+                -# <b>flood</b>: <i> (int) color_distance [(int) u (int) v] </i>: Gets pointcloud from 2D color flood. Seed (u, v) coords optional.
                 -# <b>flood3D </b> <i> (double) spatial_distance [u (int) v (int)]</b>: gets pointcloud from 3D color flood. Seed (u, v) coords optional.
                 -# <b>seg</b> <i> [(int) u (int) v] </i>: gets pointcloud from an externally segmented blob. Seed (u, v) coords optional.
                 -# <b>seedAuto</b> <i>(bool) auto </i>: Toggles from manual (click) seed to 'automatic' for segmentation modes.
@@ -67,16 +67,9 @@
             <port carrier="udp">/obj3Drec/seed:i</port>
             <required>no</required>
             <priority>no</priority>
-            <description> Receives the seed coordinates of the segmented blob, for auto segmentation</description>
+            <description> Receives the seed coordinates either from tracker or click. </description>
         </input>
-        <!--<input>
-            <type>Bottle</type>
-            <port carrier="udp">/obj3Drec/contour:i</port>
-            <required>no</required>
-            <priority>no</priority>
-            <description> Receives the polygon contour points selected by user</description>
-        </input>
-        -->
+
         <!-- output data if available -->
         <output>
             <type>Bottle</type>
@@ -96,15 +89,14 @@
         <output port_type="service">
             <type>rpc</type>
             <port carrier="tcp">/obj3Drec/seg:rpc</port>
-            <description>rpc port to communicate with the segmentation, to receive the segmented blob points. </description>
+            <description>rpc port to communicate with the segmentation module, to receive the segmented blob points. </description>
         </output>  
     </data>
 
     <dependencies>
         <computer>
             SFM module must be running. 
-	    For segmentation modes, a segmentation module accepting the correct rpc command must be connected.
-            For autoSeed mode in 2D a tracker (or tracking/segmentation) module must be running.
+	    For segmentation modes, a segmentation module accepting the correct rpc command "get_component_around" must be connected.
         </computer>
     </dependencies>
 

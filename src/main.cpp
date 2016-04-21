@@ -111,8 +111,7 @@ public:
         bool ret= true;
         ret = ret && portDispIn.open("/"+name+"/disp:i");
         ret = ret && portImgIn.open("/"+name+"/img:i");
-        ret = ret && portSeedIn.open("/"+name+"/seed:i");
-        //ret = ret && portContour.open("/"+name+"/contour:i");
+        ret = ret && portSeedIn.open("/"+name+"/seed:i");        
 
         ret = ret && portPointsOut.open("/"+name+"/pnt:o");
         ret = ret && portDispOut.open("/"+name+"/disp:o");
@@ -127,8 +126,6 @@ public:
         }
         printf("Ports opened\n");
 
-
-        //portContour.setReader(*this);
         portSeedIn.setReader(*this);
         attach(portRpc);
 
@@ -149,7 +146,6 @@ public:
         portDispIn.interrupt();
         portDispOut.interrupt();
         portImgIn.interrupt();
-        //portContour.interrupt();
         portPointsOut.interrupt();
         portSFM.interrupt();
         portSeg.interrupt();
@@ -163,7 +159,6 @@ public:
         portDispIn.close();
         portDispOut.close();
         portImgIn.close();
-        //portContour.close();
         portPointsOut.close();
         portSFM.close();
         portSeg.close();
@@ -174,7 +169,7 @@ public:
     /*******************************************************************************/
     double getPeriod()
     {
-        return 0.5;
+        return 0.1;
     }
 
     /*******************************************************************************/
@@ -255,8 +250,6 @@ public:
                 }
                 // If none of the conditions apply, means seed was either given by command or clicked before.
 
-
-
                 cout << "3D points flood3D "<<endl;
 
                 // Use the seed point to get points from SFM with the Flood3D command, and spatial_distance given
@@ -264,13 +257,10 @@ public:
                 cmdSFM.addString("Flood3D");
                 cmdSFM.addInt(seed.x);
                 cmdSFM.addInt(seed.y);
-                cmdSFM.addDouble(spatial_distance);
-                cout << " +++ RPC command to SFM: "  << cmdSFM.toString() << endl;
-                bool ok = portSFM.write(cmdSFM,replySFM);
-                cout << " +++ reply from SFM: "  << replySFM.toString() << endl;
+                cmdSFM.addDouble(spatial_distance);                
+                bool ok = portSFM.write(cmdSFM,replySFM);                
                 if (ok)
                 {
-                    cout << "Bottle of size " << replySFM.size() << " received from SFM" << endl;
                     for (int i=0; i<replySFM.size(); i+=5)
                     {
                         int x=replySFM.get(i+0).asInt();
@@ -298,8 +288,6 @@ public:
                     cout << " SFM didn't reply" << endl;
                     return true;
                 }
-
-
             }
 
 
@@ -337,14 +325,6 @@ public:
 
             else if (seg)
             {
-                /*
-                if (seedAuto){  // Autoseed overwrites present values of 'seed'
-                    if(!getTrackSeed(seed)){
-                        portPointsOut.unprepare();
-                        portDispOut.write();
-                        return true;
-                    }
-                }else   */
                 // Wait for click only if seed is not auto and coords have not been given by command or on a previous click.
                 if ((seed.x<0) && (seed.y<0))
                 {
@@ -375,6 +355,7 @@ public:
                         portPointsOut.write(); // Return empty bottle if no data was received.
                         return true;
                     }
+
                     cout << "Read " << pixelList->size() << " points from segmentation algorithm" <<endl;
                     cv::Mat binImg = cv::Mat(imgDispInMat.rows, imgDispInMat.cols, CV_8U, 0.0);
                     for (int i=0; i<pixelList->size(); i++)
@@ -397,6 +378,7 @@ public:
 
                     cout << "Retrieved " << points.size() << " 3D points"  <<endl;
                 }else{
+
                     cout << "Segmentation module did not provide reply" << endl;
                     return true;
                 }
@@ -566,9 +548,6 @@ public:
     {
         cout << "Finding seed automatically" << endl;
         cv::Mat depth = disparity.clone();
-        //cout << " depth has " << depth.channels() << " channels" << endl;
-        //cv::cvtColor(depth, depth, CV_BGR2GRAY);
-
 
         /* Filter */
         int gaussSize = 5;
@@ -681,11 +660,9 @@ public:
     /*******************************************************************************/
     void clearRec()
     {
-        //LockGuard lg(mutex);
         contour.clear();
         floodPoints.clear();
         rect = cv::Rect(1,1,0,0);
-        //polygon=flood3d=flood=seg=false;
 
         return;
     }
@@ -715,24 +692,6 @@ public:
         else if (cmd=="saving"){
             saving = command.get(1).asBool();
             cout << "Saving clouds as files is " << saving << endl;
-            reply.addVocab(ack);
-            return true;
-        }
-
-
-        else if (cmd=="testAuto"){
-
-            cout << " Testing autoseeder" << endl;
-
-            string imFile = command.get(1).asString();
-            cv::Mat image = cv::imread(imFile,1);
-
-            cout << "Read image of size " << image.rows << ", " << image.cols << endl;
-
-            cout << " Getting seed from depth" << endl;
-            //cv::Point2i seed;
-            //getDepthSeed(image,seed);
-
             reply.addVocab(ack);
             return true;
         }
@@ -770,7 +729,7 @@ public:
             reply.addString("setFormat string(fileformat)- Sets the format in which the points will be saved. 'fileformat' can be  'ply', 'off' or 'none'.");
             reply.addString("setFileName string(filename)- Sets the base name given to the files where the 3D points will be saved. ");
             reply.addString("saving (bool) - Activates/deactivated saving each reconstructed cloud in file.");
-            reply.addString("testAuto - Runs the test for automatic seed detection");
+            reply.addString("---------- Extraction Methods -----------");
             reply.addString("polygon - Gets pointcloud from the selected polygon on the disp image");
             reply.addString("flood int(color_distance) int int (coords(opt))- Gets pointcloud from 2D color flood using the parameter color_distance. Optionally coords can be given by command.");
             reply.addString("flood3d double(spatial_distance) int int (coords(opt))- gets pointcloud from 3D color flood (based on depth with parameter spatial_distance). Optionally coords can be given by command.");
