@@ -131,8 +131,6 @@ public:
 
         polygon=flood3d=flood=seg=false;
 
-        seedAuto = true;
-
         seed.x = -1; seed.y = -1;       // Negativ values mean undefined seed
 
         rect = cv::Rect(1, 1, 0,0);
