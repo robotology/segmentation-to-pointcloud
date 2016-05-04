@@ -78,8 +78,12 @@ protected:
             LockGuard lg(mutex);
             cv::Point point(data.get(0).asInt(),data.get(1).asInt());
             contour.push_back(point);
-            if (contour.size()>12)
+            cout << " added point " << point.x << " , " << point.y << " to contour" << endl;
+            cout << " Contour size is now: " << contour.size() <<endl;
+            if (contour.size()>12){
                 contour.pop_back();
+                cout << " removed latest point from contour" << endl;
+            }
             seed = point;
         }
 
@@ -211,7 +215,7 @@ public:
             vector<Vector> points;
 
             if (polygon){
-                if (contour.size()>0)
+                if (contour.size()>3)
                 {
                     cout << "3D points from selected contour "<<endl;
 
@@ -658,7 +662,7 @@ public:
     /*******************************************************************************/
     void clearRec()
     {
-        contour.clear();
+        //contour.clear();
         floodPoints.clear();
         rect = cv::Rect(1,1,0,0);
 
