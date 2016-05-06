@@ -3,7 +3,7 @@
 # CopyPolicy: Released under the terms of the GNU GPL v2.0.
 
 cmake_minimum_required(VERSION 2.8)
-set(PROJECTNAME obj3Drec)
+set(PROJECTNAME seg2cloud)
 project(${PROJECTNAME})
 
 find_package(YARP REQUIRED)

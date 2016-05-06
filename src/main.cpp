@@ -36,7 +36,7 @@ using namespace yarp::math;
 
 
 /*******************************************************************************/
-class Obj3DrecModule : public RFModule, public PortReader
+class Seg2cloudModule : public RFModule, public PortReader
 {
 protected:
     vector<cv::Point> contour;
@@ -94,7 +94,7 @@ public:
     /*******************************************************************************/
     bool configure(ResourceFinder &rf)
     {
-        name = rf.check("name", Value("obj3Drec"), "Getting module name").asString();
+        name = rf.check("name", Value("seg2cloud"), "Getting module name").asString();
 
         homeContextPath=rf.getHomeContextPath().c_str();
         savename = rf.check("savename", Value("cloud3D"), "Default file savename").asString();
@@ -844,9 +844,9 @@ int main(int argc,char *argv[])
         return 1;
     }
 
-    Obj3DrecModule mod;
+    Seg2cloudModule mod;
     ResourceFinder rf;
-    rf.setDefaultContext("obj3Drec");
+    rf.setDefaultContext("seg2cloud");
     rf.configure(argc,argv);
     return mod.runModule(rf);
 }
