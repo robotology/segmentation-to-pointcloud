@@ -1,0 +1,74 @@
+<application>
+    <name>seg2cloud_APP</name>
+    <module>
+        <name>SFM</name>
+        <parameters></parameters>
+        <node>console</node>
+        <prefix></prefix>
+        <geometry>(Pos (x 554) (y 110.9))</geometry>
+    </module>
+    <module>
+        <name>graphBasedSegmentation</name>
+        <parameters></parameters>
+        <node>console</node>
+        <prefix></prefix>
+        <geometry>(Pos (x 849.287) (y 234.364))</geometry>
+    </module>
+    <module>
+        <name>seg2cloud</name>
+        <parameters>--downsampling 1 --spatial_distance 0.01 --color_distance 6</parameters>
+        <node>console</node>
+        <prefix></prefix>
+        <geometry>(Pos (x 501) (y 329.9))</geometry>
+    </module>
+    <module>
+        <name>yarpview</name>
+        <parameters>--name /disp --out /disp/out --p 33</parameters>
+        <node>console</node>
+        <prefix></prefix>
+        <geometry>(Pos (x 774) (y 132.9))</geometry>
+    </module>
+    <module>
+        <name>yarpview</name>
+        <parameters>--name /segView --p 33 --out /segView/coordinates:out</parameters>
+        <node>console</node>
+        <prefix></prefix>
+        <geometry>(Pos (x 545.884) (y 495.112))</geometry>
+    </module>
+    <module>
+        <name>yarpview</name>
+        <parameters>--name /imLeft --p 33</parameters>
+        <node>console</node>
+        <prefix></prefix>
+        <geometry>(Pos (x 307.093) (y 35.1394))</geometry>
+    </module>
+    <connection>
+        <from>/SFM/disp:o</from>
+        <to>/seg2cloud/disp:i</to>
+        <protocol>udp</protocol>
+        <geometry>(Pos ((x 574.5) (y 257)) ((x 668) (y 141)) ((x 502) (y 373))  )</geometry>
+    </connection>
+    <connection>
+        <from external="true">/icub/camcalib/left/out</from>
+        <to>/SFM/left:i</to>
+        <protocol>tcp</protocol>
+        <geometry>(Pos ((x 338.5) (y 172.5)) ((x 143) (y 216)) ((x 555) (y 129))  )</geometry>
+    </connection>
+    <connection>
+        <from external="true">/icub/camcalib/left/out</from>
+        <to>/GBSeg/rawImg:i</to>
+        <protocol>udp</protocol>
+        <geometry>(Pos ((x -1) (y -1)) ((x 143) (y 216)) ((x 850) (y 252))  )</geometry>
+    </connection>
+    <connection>
+        <from>/seg2cloud/seg:rpc</from>
+        <to>/GBSeg/conf</to>
+        <protocol>tcp</protocol>
+        <geometry>(Pos ((x 739.5) (y 355.5)) ((x 650) (y 434)) ((x 850) (y 277))  )</geometry>
+    </connection>
+    <connection>
+        <from external="true">/icub/camcalib/right/out</from>
+        <to>/SFM/right:i</to>
+        <protocol>tcp</protocol>
+        <geometry>(Pos ((x 339.5) (y 216)) ((x 145) (y 278)) ((x 555) (y 154))  )</geometry>
+    </connection>

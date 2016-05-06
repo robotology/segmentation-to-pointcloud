@@ -1,0 +1,129 @@
+<application>
+<name>seg2cloud_APPSIM</name>
+        <dependencies>
+            <port>/icub/camcalib/left/out</port>
+            <port>/icub/camcalib/right/out</port>
+            <port>/iKinGazeCtrl/rpc</port>
+        </dependencies>
+      
+        <module>
+           <name>SFM</name>
+           <node>localhost</node>
+           <parameters>--robot icubSim</parameters>
+        </module>
+
+        <module>
+           <name>show3D</name>
+           <node>localhost</node>
+           <parameters>--robot icubSim</parameters>
+        </module>
+
+        <module>
+           <name>seg2cloud</name>
+           <parameters>--downsampling 1 --spatial_distance 0.004 --color_distance 6 --robot icubSim</parameters>
+           <node>localhost</node>
+        </module>
+        
+        <module>
+            <name>graphBasedSegmentation</name>
+            <parameters></parameters>
+            <node>localhost</node>
+        </module>
+
+        <module>
+           <name>yarpview</name>
+           <parameters>--name /disp --out /disp/out --p 33</parameters>
+           <node>localhost</node>
+        </module>
+
+        <module>
+           <name>yarpview</name>
+           <parameters>--name /segView --p 33 --out /segView/coordinates:out</parameters>
+           <node>console</node>
+        </module>
+
+        <module>
+           <name>yarpview</name>
+           <parameters>--name /imLeft --p 33</parameters>
+           <node>localhost</node>
+        </module>
+
+        <connection>
+            <from>/icubSim/cam/left</from>
+            <to>/SFM/left:i</to>
+            <protocol>tcp</protocol>
+        </connection>
+        <connection>
+            <from>/icubSim/cam/right</from>
+            <to>/SFM/right:i</to>
+            <protocol>tcp</protocol>
+        </connection>        
+        <connection>
+            <from>/seg2cloud/pnt:o</from>
+            <to>/show3D/clouds:i</to>
+            <protocol>tcp</protocol>
+        </connection>  
+                      
+        <connection>
+            <from>/icubSim/cam/left</from>
+            <to>/GBSeg/rawImg:i</to>
+            <protocol>tcp</protocol>
+        </connection>
+
+        <connection>
+            <from>/SFM/disp:o</from>
+            <to>/seg2cloud/disp:i</to>
+            <protocol>tcp</protocol>
+        </connection>
+
+        <connection>
+            <from>/seg2cloud/SFM:rpc</from>
+            <to>/SFM/rpc</to>
+            <protocol>tcp</protocol>
+        </connection>
+        
+        <connection>
+            <from>/seg2cloud/seg:rpc</from>
+            <to>/GBSeg/conf</to>
+            <protocol>tcp</protocol>
+        </connection>
+
+        <connection>
+            <from>/icubSim/cam/left</from>
+            <to>/seg2cloud/img:i</to>
+            <protocol>tcp</protocol>
+        </connection>
+        
+        <connection>
+            <from>/icubSim/cam/left</from>
+            <to>/imLeft</to>
+            <protocol>tcp</protocol>
+        </connection>
+
+        <connection>
+            <from>/seg2cloud/disp:o</from>
+            <to>/disp</to>
+            <protocol>tcp</protocol>
+        </connection>
+
+        <connection>
+            <from>/disp/out</from>
+            <to>/seg2cloud/contour:i</to>
+            <protocol>tcp</protocol>
+        </connection>
+        
+        <connection>
+            <from>/GBSeg/viewImg:o</from>
+            <to>/segView/yarpview/img:i</to>
+            <protocol>udp</protocol>
+        </connection>
+        
+        <connection>
+            <from>/segView/coordinates:out</from>
+            <to>/seg2cloud/seed:i</to>
+            <protocol>udp</protocol>
+            <geometry>(Pos ((x 822.5) (y 173.5)) ((x 833) (y 139)) ((x 833) (y 208))  )</geometry>
+        </connection>
+        
+</application>
+
