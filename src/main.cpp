@@ -73,16 +73,14 @@ protected:
     bool read(ConnectionReader &connection)
     {
         Bottle data; data.read(connection);
+        cout << " Read: " << data.toString() << endl;
         if (data.size()>=2)
         {
             LockGuard lg(mutex);
             cv::Point point(data.get(0).asInt(),data.get(1).asInt());
             contour.push_back(point);
-            cout << " added point " << point.x << " , " << point.y << " to contour" << endl;
-            cout << " Contour size is now: " << contour.size() <<endl;
             if (contour.size()>12){
-                contour.pop_back();
-                cout << " removed latest point from contour" << endl;
+                contour.pop_back();               
             }
             seed = point;
         }

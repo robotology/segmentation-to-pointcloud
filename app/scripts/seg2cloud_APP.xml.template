@@ -3,49 +3,49 @@
     <module>
         <name>SFM</name>
         <parameters></parameters>
-        <node>console</node>
+        <node>icub-cuda</node>
         <prefix></prefix>
         <geometry>(Pos (x 444.638) (y 540.145))</geometry>
     </module>
     <module>
         <name>lbpExtract</name>
         <parameters></parameters>
-        <node>console</node>
+        <node>icub21</node>
         <prefix></prefix>
         <geometry>(Pos (x 454.205) (y 164.07))</geometry>
     </module>
     <module>
         <name>seg2cloud</name>
         <parameters></parameters>
-        <node>console</node>
+        <node>icub21</node>
         <prefix></prefix>
         <geometry>(Pos (x 694.101) (y 405.031))</geometry>
     </module>
     <module>
         <name>show3D</name>
         <parameters></parameters>
-        <node>console</node>
+        <node>icub22</node>
         <prefix>/seg2cloud</prefix>
         <geometry>(Pos (x 951.271) (y 336.692))</geometry>
     </module>
     <module>
         <name>yarpview</name>
-        <parameters>--x 700 --y 0 --out /disp/out --p 33</parameters>
-        <node>console</node>
+        <parameters>--x 700 --y 0 --out /out --p 33</parameters>
+        <node>icub22</node>
         <prefix>/disp</prefix>
         <geometry>(Pos (x 953.073) (y 401.873))</geometry>
     </module>
     <module>
         <name>yarpview</name>
-        <parameters>--p 33 --x 350 --y 0 --out /segView/coordinates:out</parameters>
-        <node>console</node>
+        <parameters>--p 33 --x 350 --y 0 --out /out</parameters>
+        <node>icub22</node>
         <prefix>/segView</prefix>
         <geometry>(Pos (x 952.276) (y 252.501))</geometry>
     </module>
     <module>
         <name>yarpview</name>
         <parameters>--p 33 --x 0 --y 0</parameters>
-        <node>console</node>
+        <node>icub22</node>
         <prefix>/imLeft</prefix>
         <geometry>(Pos (x 452.294) (y 303.89))</geometry>
     </module>
@@ -58,8 +58,20 @@
     <connection>
         <from>/SFM/disp:o</from>
         <to>/seg2cloud/disp:i</to>
-        <protocol>udp</protocol>
+        <protocol>tcp</protocol>
         <geometry>(Pos ((x -1) (y -1)) ((x 69) (y -48)) ((x -86) (y -16))  )</geometry>
+    </connection>
+    <connection>
+        <from>/disp/out</from>
+        <to>/seg2cloud/seed:i</to>
+        <protocol>udp</protocol>
+        <geometry>(Pos ((x -1) (y -1)) ((x 87) (y 80)) ((x -86) (y 48))  )</geometry>
+    </connection>
+    <connection>
+        <from>/segView/out</from>
+        <to>/seg2cloud/seed:i</to>
+        <protocol>udp</protocol>
+        <geometry>(Pos ((x -1) (y -1)) ((x 87) (y 80)) ((x -86) (y 48))  )</geometry>
     </connection>
     <connection>
         <from>/lbpExtract/blobs:o</from>
@@ -106,7 +118,7 @@
     <connection>
         <from>/seg2cloud/pnt:o</from>
         <to>/seg2cloud/show3D/clouds:i</to>
-        <protocol>udp</protocol>
+        <protocol>tcp</protocol>
         <geometry>(Pos ((x -1) (y -1)) ((x 86) (y -48)) ((x -79) (y 16))  )</geometry>
     </connection>
     <connection>
