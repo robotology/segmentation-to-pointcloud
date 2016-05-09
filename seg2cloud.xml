@@ -43,7 +43,7 @@
                 -# <b>setFileName </b> <i> (string) filename</i>: Sets the base name given to the files where the 3D points will be saved.
                 -# <b>polygon</b>: Gets pointcloud from the selected polygon on the disp image.
                 -# <b>flood</b>: <i> (int) color_distance [(int) u (int) v] </i>: Gets pointcloud from 2D color flood. Seed (u, v) coords optional.
-                -# <b>flood3D </b> <i> (double) spatial_distance [u (int) v (int)]</b>: gets pointcloud from 3D color flood. Seed (u, v) coords optional.
+                -# <b>flood3D </b> <i> (double) spatial_distance [u (int) v (int)]</i>: gets pointcloud from 3D color flood. Seed (u, v) coords optional.
                 -# <b>seg</b> <i> [(int) u (int) v] </i>: gets pointcloud from an externally segmented blob. Seed (u, v) coords optional.
                 -# <b>seedAuto</b> <i>(bool) auto </i>: Toggles from manual (click) seed to 'automatic' for segmentation modes.
             </description>
