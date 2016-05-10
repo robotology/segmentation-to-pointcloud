@@ -16,7 +16,7 @@
     </module>
     <module>
         <name>seg2cloud</name>
-        <parameters>--robot icubSim</parameters>
+        <parameters>--downsampling 1 --spatial_distance 0.004 --color_distance 6 --robot icubSim</parameters>
         <node>localhost</node>
         <prefix></prefix>
         <geometry>(Pos (x 694.101) (y 405.031))</geometry>
@@ -99,7 +99,7 @@
     </connection>
     <connection>
         <from>/seg2cloud/pnt:o</from>
-        <to>/seg2cloud_APP:show3D:1/show3D/clouds:i</to>
+        <to>/show3D/clouds:i</to>
         <protocol>udp</protocol>
         <geometry>(Pos ((x -1) (y -1)) ((x 86) (y -48)) ((x -79) (y 16))  )</geometry>
     </connection>

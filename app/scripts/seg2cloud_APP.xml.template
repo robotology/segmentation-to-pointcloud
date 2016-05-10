@@ -76,7 +76,7 @@
     <connection>
         <from>/lbpExtract/blobs:o</from>
         <to>/seg2cloud/seed:i</to>
-        <protocol>udp</protocol>
+        <protocol>tcp+recv.portmonitor+type.lua+file.bb2center</protocol>
         <geometry>(Pos ((x -1) (y -1)) ((x 87) (y 80)) ((x -86) (y 48))  )</geometry>
     </connection>
     <connection>
