@@ -35,6 +35,7 @@ Online documentation is available here:  [http://robotology.github.com/segmentat
 ## Images of reconstruction results: 
 
 ###seg (2D segmentation provided by [lbpExptract](https://github.com/robotology/segmentation/tree/master/lbpExtract))
+<img src="https://github.com/robotology/segmentation-to-pointcloud/blob/master/figs/extSeg.png" width="400">
 ![segImage] (https://github.com/robotology/segmentation-to-pointcloud/blob/master/figs/extSeg.png)
 
 ###flood (2D color flood)
