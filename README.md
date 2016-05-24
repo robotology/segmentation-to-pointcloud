@@ -22,13 +22,16 @@ This modules interfaces between segmentation modules and SFM in order to provide
 
 The results obtained with each of these options can be observed below:
 seg (2D segmentation provided by [lbpExptract](https://github.com/robotology/segmentation/tree/master/lbpExtract))
-![segImage] (https://github.com/robotology/segmentation-to-pointcloud/tree/master/figs/extSeg.png)
+![segImage] (https://github.com/robotology/segmentation-to-pointcloud/blob/master/figs/extSeg.png)
+
 flood (2D color flood)
-![floodImage] (https://github.com/robotology/segmentation-to-pointcloud/tree/master/figs/floodSeg.png)
+![floodImage] (https://github.com/robotology/segmentation-to-pointcloud/blob/master/figs/colorSeg.png)
+
 flood3D (3D spatial flood)
-![floodImage] (https://github.com/robotology/segmentation-to-pointcloud/tree/master/figs/floodSeg.png)
+![floodImage] (https://github.com/robotology/segmentation-to-pointcloud/blob/master/figs/flood3Dseg.png)
+
 polygon (Selected polygon segmentation)
-![floodImage] (https://github.com/robotology/segmentation-to-pointcloud/tree/master/figs/floodSeg.png)
+![floodImage] (https://github.com/robotology/segmentation-to-pointcloud/blob/master/figs/polygonSeg.png)
 
 In the three first options above (seg, flood and flood3d) the initial seed to perform segmentation can be provided in 3 different ways: 
 - If parameter *seedAuto* is set to *true*, the seed will be obtained automatically, by reading from a tracker (2D options *seg* and *flood*) or selecting the closest blob (3D option *flood3d*).
