@@ -20,7 +20,20 @@ This modules interfaces between segmentation modules and SFM in order to provide
 - **flood3D** 3D depth flood. The contour is determined by a flood operation performed on the depth image, controlled by the thresholding parameter *space_distance*. 
 - **polygon** User selected polygon contour. The contour is provided by the user as a contour by selecting the vertices on a connected yarpview window.
 
-The results obtained with each of these options can be observed below:
+The results obtained with each of these options can be observed below.
+
+In the three first options above (seg, flood and flood3d) the initial seed to perform segmentation can be provided in 3 different ways: 
+- If parameter *seedAuto* is set to *true*, the seed will be obtained automatically, by reading from a tracker (2D options *seg* and *flood*) or selecting the closest blob (3D option *flood3d*).
+- If parameter *seedAuto* is set to *false*, the seed can be coveyed in 2 further ways:
+  - By *clicking* on the a connected yarpview window with output
+  - As *explicit u v coordinates* given after the segmentation command. For example <tt> seg 102 175 </tt>.
+
+## Documentation 
+Online documentation is available here:  [http://robotology.github.com/segmentation-to-pointcloud](http://robotology.github.com/segmentation-to-pointcloud).
+
+
+## Images of reconstruction results: 
+
 seg (2D segmentation provided by [lbpExptract](https://github.com/robotology/segmentation/tree/master/lbpExtract))
 ![segImage] (https://github.com/robotology/segmentation-to-pointcloud/blob/master/figs/extSeg.png)
 
@@ -33,14 +46,6 @@ flood3D (3D spatial flood)
 polygon (Selected polygon segmentation)
 ![floodImage] (https://github.com/robotology/segmentation-to-pointcloud/blob/master/figs/polygonSeg.png)
 
-In the three first options above (seg, flood and flood3d) the initial seed to perform segmentation can be provided in 3 different ways: 
-- If parameter *seedAuto* is set to *true*, the seed will be obtained automatically, by reading from a tracker (2D options *seg* and *flood*) or selecting the closest blob (3D option *flood3d*).
-- If parameter *seedAuto* is set to *false*, the seed can be coveyed in 2 further ways:
-  - By *clicking* on the a connected yarpview window with output
-  - As *explicit u v coordinates* given after the segmentation command. For example <tt> seg 102 175 </tt>.
-
-## Documentation 
-Online documentation is available here:  [http://robotology.github.com/segmentation-to-pointcloud](http://robotology.github.com/segmentation-to-pointcloud).
 
 
 ## License
