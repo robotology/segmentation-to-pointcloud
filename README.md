@@ -35,19 +35,16 @@ Online documentation is available here:  [http://robotology.github.com/segmentat
 ## Images of reconstruction results: 
 
 ###seg (2D segmentation provided by [lbpExptract](https://github.com/robotology/segmentation/tree/master/lbpExtract))
-<img src="https://github.com/robotology/segmentation-to-pointcloud/blob/master/figs/extSeg.png" width="400">
-![segImage] (https://github.com/robotology/segmentation-to-pointcloud/blob/master/figs/extSeg.png)
+<img src="https://github.com/robotology/segmentation-to-pointcloud/blob/master/figs/extSeg.png" width="700">
 
 ###flood (2D color flood)
-![floodImage] (https://github.com/robotology/segmentation-to-pointcloud/blob/master/figs/colorSeg.png)
+<img src="https://github.com/robotology/segmentation-to-pointcloud/blob/master/figs/colorSeg.png" width="700">
 
 ###flood3D (3D spatial flood)
-![floodImage] (https://github.com/robotology/segmentation-to-pointcloud/blob/master/figs/flood3Dseg.png)
+<img src="https://github.com/robotology/segmentation-to-pointcloud/blob/master/figs/flood3DSeg.png" width="700">
 
 ###polygon (Selected polygon segmentation)
-![floodImage] (https://github.com/robotology/segmentation-to-pointcloud/blob/master/figs/polygonSeg.png)
-
-
+<img src="https://github.com/robotology/segmentation-to-pointcloud/blob/master/figs/polygonSeg.png" width="700">
 
 ## License
 Material included here is Copyright of _iCub Facility - Istituto Italiano di Tecnologia_
