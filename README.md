@@ -34,16 +34,16 @@ Online documentation is available here:  [http://robotology.github.com/segmentat
 
 ## Images of reconstruction results: 
 
-seg (2D segmentation provided by [lbpExptract](https://github.com/robotology/segmentation/tree/master/lbpExtract))
+###seg (2D segmentation provided by [lbpExptract](https://github.com/robotology/segmentation/tree/master/lbpExtract))
 ![segImage] (https://github.com/robotology/segmentation-to-pointcloud/blob/master/figs/extSeg.png)
 
-flood (2D color flood)
+###flood (2D color flood)
 ![floodImage] (https://github.com/robotology/segmentation-to-pointcloud/blob/master/figs/colorSeg.png)
 
-flood3D (3D spatial flood)
+###flood3D (3D spatial flood)
 ![floodImage] (https://github.com/robotology/segmentation-to-pointcloud/blob/master/figs/flood3Dseg.png)
 
-polygon (Selected polygon segmentation)
+###polygon (Selected polygon segmentation)
 ![floodImage] (https://github.com/robotology/segmentation-to-pointcloud/blob/master/figs/polygonSeg.png)
 
 
