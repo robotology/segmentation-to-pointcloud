@@ -26,8 +26,8 @@
 
     <!-- <authors> can have multiple <author> tags. -->
     <authors>
-  	  <author email="ugo.pattacini@iit.it"> Ugo Pattacini</author>
-	  <author email="tanis.mar@iit.it"> Tanis Mar</author>
+  	  <author email="ugo.pattacini@iit.it"> Ugo Pattacini </author>
+	  <author email="tanis.mar@iit.it"> Tanis Mar </author>
     </authors>
     
      <!-- <data> can have multiple <input> or <output> tags. -->
@@ -73,7 +73,7 @@
         <!-- output data if available -->
         <output>
             <type>Bottle</type>
-            <port carrier="udp">/seg2cloud/pnt:o</port>
+            <port carrier="tcp">/seg2cloud/pnt:o</port>
             <description>Sends out the reconstructed 3D object as a bottle of points, where each point is itself a list of 3 values x, y, z, and optionally other 3 r, g, b. </description>
         </output> 
         <output>
