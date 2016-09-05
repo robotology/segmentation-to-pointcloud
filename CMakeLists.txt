@@ -7,13 +7,15 @@ set(PROJECTNAME seg2cloud)
 project(${PROJECTNAME})
 
 find_package(YARP REQUIRED)
-list(APPEND CMAKE_MODULE_PATH ${YARP_MODULE_PATH})
-include(YarpInstallationHelpers)
-
+find_package(ICUBcontrib REQUIRED)
 find_package(OpenCV REQUIRED)
 
-find_package(ICUBcontrib)
+list(APPEND CMAKE_MODULE_PATH ${YARP_MODULE_PATH})
 list(APPEND CMAKE_MODULE_PATH ${ICUBCONTRIB_MODULE_PATH})
+
+add_definitions(${YARP_DEFINES})   # add yarp definitions - this contains also -D_REENTRANT
+
+include(YarpInstallationHelpers)
 include(ICUBcontribHelpers)
 include(ICUBcontribOptions)
 icubcontrib_set_default_prefix()
