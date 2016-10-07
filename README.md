@@ -41,7 +41,7 @@ Online documentation is available here:  [http://robotology.github.com/segmentat
 <img src="https://github.com/robotology/segmentation-to-pointcloud/blob/master/figs/colorSeg.png" width="700">
 
 ###flood3D (3D spatial flood)
-<img src="https://github.com/robotology/segmentation-to-pointcloud/blob/master/figs/flood3DSeg.png" width="700">
+<img src="https://github.com/robotology/segmentation-to-pointcloud/blob/master/figs/flood3Dseg.png" width="700">
 
 ###polygon (Selected polygon segmentation)
 <img src="https://github.com/robotology/segmentation-to-pointcloud/blob/master/figs/polygonSeg.png" width="700">
