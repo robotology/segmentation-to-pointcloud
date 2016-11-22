@@ -77,6 +77,11 @@
             <description>Sends out the reconstructed 3D object as a bottle of points, where each point is itself a list of 3 values x, y, z, and optionally other 3 r, g, b. </description>
         </output> 
         <output>
+            <type>Bottle</type>
+            <port carrier="tcp">/seg2cloud/pnt2D:o</port>
+            <description>Sends out the 2D coordinates of the segmented points used to retrieve the pointcloud. </description>
+        </output>
+        <output>
             <type>ImageOfPixelRgb</type>
             <port carrier="udp">/seg2cloud/disp:o</port>
             <description>Sends out the processed disparity, with segmented data or bounding box, for visualization.</description>
