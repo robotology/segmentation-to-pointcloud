@@ -61,6 +61,8 @@ protected:
     BufferedPort<ImageOf<PixelRgb> > portDispOut;
     BufferedPort<ImageOf<PixelRgb> > portImgIn;
     BufferedPort<Bottle> portPointsOut;
+    BufferedPort<Bottle> portPoints2DOut;
+
     Port portSeedIn;
     //Port portContour;
     RpcClient portSFM;
@@ -116,6 +118,7 @@ public:
         ret = ret && portSeedIn.open("/"+name+"/seed:i");        
 
         ret = ret && portPointsOut.open("/"+name+"/pnt:o");
+        ret = ret && portPoints2DOut.open("/"+name+"/pnt2D:o");
         ret = ret && portDispOut.open("/"+name+"/disp:o");
 
         ret = ret && portSFM.open("/"+name+"/SFM:rpc");
@@ -147,6 +150,7 @@ public:
         portDispOut.interrupt();
         portImgIn.interrupt();
         portPointsOut.interrupt();
+        portPoints2DOut.interrupt();
         portSFM.interrupt();
         portSeg.interrupt();
         portRpc.interrupt();
@@ -160,6 +164,7 @@ public:
         portDispOut.close();
         portImgIn.close();
         portPointsOut.close();
+        portPoints2DOut.close();
         portSFM.close();
         portSeg.close();
         portRpc.close();
@@ -209,7 +214,7 @@ public:
             clearRec();
 
             // Create variables to store points in any case
-            Bottle &bpoints=portPointsOut.prepare();
+            Bottle &bpoints=portPointsOut.prepare();            
             vector<Vector> points;
 
             if (polygon){
@@ -391,10 +396,10 @@ public:
                 if (saving){
                     saveCloud(points);
                 }
-                portPointsOut.write();
+                portPointsOut.write();                
 
             }else {
-                portPointsOut.unprepare();
+                portPointsOut.unprepare();                
             }
 
             seed.x = -1; seed.y = -1; // Reset seed after each rec call
@@ -403,9 +408,23 @@ public:
             bpoints.clear();
         }
 
-        PixelRgb color(255,255,0);
-        for (size_t i=0; i<floodPoints.size(); i++)
-            imgDispOut.pixel(floodPoints[i].x,floodPoints[i].y)=color;
+        if (floodPoints.size()>0){
+            Bottle &bpoints2D = portPoints2DOut.prepare();
+            PixelRgb color(255,255,0);
+            bpoints2D.clear();
+            for (size_t i=0; i<floodPoints.size(); i++){
+                imgDispOut.pixel(floodPoints[i].x,floodPoints[i].y)=color;
+
+                Bottle &bpoint2D = bpoints2D.addList();
+                bpoint2D.addInt(floodPoints[i].x);
+                bpoint2D.addInt(floodPoints[i].y);
+            }
+
+            portPoints2DOut.write();
+        }else{
+            portPoints2DOut.unprepare();
+        }
+
 
         portDispOut.write();
         return true;
