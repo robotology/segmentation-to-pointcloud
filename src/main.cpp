@@ -406,22 +406,26 @@ public:
             polygon=flood=flood3d=seg=false;
             points.clear();
             bpoints.clear();
-        }
+        }        
 
         if (floodPoints.size()>0){
+            PixelRgb color(130,255,0);
             Bottle &bpoints2D = portPoints2DOut.prepare();
-            PixelRgb color(255,255,0);
             bpoints2D.clear();
             for (size_t i=0; i<floodPoints.size(); i++){
                 imgDispOut.pixel(floodPoints[i].x,floodPoints[i].y)=color;
-
                 Bottle &bpoint2D = bpoints2D.addList();
+                // Remember that cv::Points are (x =column, y = row) and YARP coords are (u = row, v = column)
                 bpoint2D.addInt(floodPoints[i].x);
                 bpoint2D.addInt(floodPoints[i].y);
-            }
 
+            }
+            portDispOut.write();
             portPoints2DOut.write();
-        }else{
+            Time::delay(0.5);
+            floodPoints.clear();
+            return true;
+        }else{ 
             portPoints2DOut.unprepare();
         }
 
@@ -799,11 +803,11 @@ public:
                         cout << "seed needs to be clicked" << endl;
                     }
 
-
                     reply.addVocab(ack);
+                    // Remember that cv::Points are (x =column, y = row) and YARP coords are (u = row, v = column)
                     reply.addInt(seed.x);
                     reply.addInt(seed.y);
-                    reply.addInt(spatial_distance);
+                    reply.addDouble(spatial_distance);
                     flood3d=true;
 
                 }
