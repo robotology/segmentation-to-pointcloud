@@ -396,7 +396,11 @@ public:
                 if (saving){
                     saveCloud(points);
                 }
-                portPointsOut.write();                
+                for (int t = 0; t < 10; t++){
+                    portPointsOut.write();
+                    cout << " 3D points sent time" << t << endl;
+                    Time::delay(0.2);
+                }
 
             }else {
                 portPointsOut.unprepare();                
@@ -420,9 +424,13 @@ public:
                 bpoint2D.addInt(floodPoints[i].y);
 
             }
-            portDispOut.write();
-            portPoints2DOut.write();
-            Time::delay(0.5);
+            // Send images and 2D points for a second
+            for (int t = 0; t < 10; t++){
+                portDispOut.write();
+                portPoints2DOut.write();
+                cout << " 2D points sent time" << t << endl;
+                Time::delay(0.2);
+            }
             floodPoints.clear();
             return true;
         }else{ 
