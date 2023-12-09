@@ -25,7 +25,7 @@ source_group("Source Files" FILES ${sources})
 
 include_directories(${YARP_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
 add_executable(${PROJECTNAME} ${sources})
-target_link_libraries(${PROJECTNAME} ${YARP_LIBRARIES} ${OpenCV_LIBRARIES})
+target_link_libraries(${PROJECTNAME} ${YARP_LIBRARIES} ${OpenCV_LIBS})
 install(TARGETS ${PROJECTNAME} DESTINATION bin)
 icubcontrib_add_uninstall_target()
 
